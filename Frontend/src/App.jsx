@@ -7,6 +7,7 @@ import SignupPage from "./pages/SignupPage.jsx";
 import MyTicketsPage from "./pages/MyTicketsPage.jsx";
 import TicketDetailsPage from "./pages/TicketDetailsPage.jsx";
 import EmployeeDashboardPage from "./pages/EmployeeDashboardPage.jsx";
+import ProfilePage from "./pages/ProfilePage.jsx";
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
       <Route path="/signin" element={<SignInPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/home" element={<HomePage />} />
+      <Route path="/profile" element={<ProfilePage />} />
       <Route path="/tickets/new" element={<NewTicketPage />} />
       <Route path="/tickets" element={<MyTicketsPage />} />
       <Route path="/tickets/:id" element={<TicketDetailsPage />} />

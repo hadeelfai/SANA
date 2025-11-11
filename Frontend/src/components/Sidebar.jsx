@@ -179,7 +179,10 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                     </button>
 
                     {menuOpen && (
-                        <button className="flex items-center gap-4 hover:bg-[#272727] rounded-lg transition px-3 py-2">
+                        <button
+                            onClick={() => navigate("/profile")}
+                            className="flex items-center gap-4 hover:bg-[#272727] rounded-lg transition px-3 py-2"
+                        >
                             <User className="w-5 h-5" />
                             <span className="text-white opacity-50 text-lg">{t.profile}</span>
                         </button>
