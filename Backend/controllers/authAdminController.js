@@ -13,21 +13,16 @@ export const adminSignup = async (req, res) => {
         .json({ errors: errors.array() });
     }
 
-    const { name, email, password, role } = req.body;
-    if (!email || !password || !name || !role) {
+    const { name, email, password } = req.body;
+    if (!email || !password || !name) {
       return res.status(400).json({
         success: false,
         message: "All fields are required",
       });
     }
 
-    // Check if the user is an admin
-    if (role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. Admins only.",
-      });
-    }
+    // Force role to admin for this endpoint
+    const role = "admin";
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {

@@ -2,6 +2,7 @@
 import Sidebar from "../components/Sidebar";
 import { useState, useRef, useEffect } from "react";
 import { useLanguage } from "../contexts/LanguageContext";
+import { useAuth } from "../contexts/AuthContext.jsx";
 import { translations } from "../translations";
 
 export default function HomePage() {
@@ -11,6 +12,7 @@ export default function HomePage() {
   const { language } = useLanguage();
   const t = translations[language];
   const messagesEndRef = useRef(null);
+  const { user } = useAuth();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -66,7 +68,7 @@ export default function HomePage() {
         {messages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center space-y-8 px-4">
             <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-[#2AC0DA] via-[#CEE9E8] to-[#48A07D] bg-clip-text text-transparent">
-              {t.welcomeName}
+              {language === 'ar' ? `مرحبًا، ${user?.name ?? '...'}` : `Welcome, ${user?.name ?? '...'}`}
             </h2>
             <p className="text-2xl md:text-3xl text-gray-300">
               {t.howCanIHelp}

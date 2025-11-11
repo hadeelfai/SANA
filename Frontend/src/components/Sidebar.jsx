@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../translations";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 export default function Sidebar({ menuOpen, setMenuOpen }) {
     const [ticketsOpen, setTicketsOpen] = useState(true);
@@ -24,6 +25,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
     const [searchQuery, setSearchQuery] = useState("");
     const { language, toggleLanguage } = useLanguage();
     const t = translations[language];
+    const { logout } = useAuth();
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -195,7 +197,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                                 <Globe className="w-5 h-5" />
                                 <span className="text-white opacity-50">{t.language}: {language === 'ar' ? 'العربية' : 'English'}</span>
                             </button>
-                            <button className={`text-white opacity-50 block w-full text-${language === 'ar' ? 'right' : 'left'} px-4 py-2 hover:bg-[#272727] transition text-sm border-t border-[#272727]`}>
+                            <button onClick={logout} className={`text-white opacity-50 block w-full text-${language === 'ar' ? 'right' : 'left'} px-4 py-2 hover:bg-[#272727] transition text-sm border-t border-[#272727]`}>
                                 {t.logout}
                             </button>
                         </div>

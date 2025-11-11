@@ -21,12 +21,13 @@ export const userSignup = async (req, res) => {
         message: "All fields are required",
       });
     }
-    const nameRegex = /^[A-Za-z\s'-]{6,20}$/;
+    // English letters, spaces, apostrophes, hyphens. Length 2–40.
+    const nameRegex = /^[A-Za-z\s'-]{2,40}$/;
     if (!nameRegex.test(name)) {
       return res.status(400).json({
         success: false,
         message:
-          "Name must contain only letters and be 6 to 20 characters long",
+          "Name must contain only English letters and be 2 to 40 characters long",
       });
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
