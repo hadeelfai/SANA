@@ -1,6 +1,7 @@
 // HomePage.jsx
 import Sidebar from "../components/Sidebar";
 import { useState, useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { translations } from "../translations";
@@ -13,6 +14,7 @@ export default function HomePage() {
   const t = translations[language];
   const messagesEndRef = useRef(null);
   const { user } = useAuth();
+  const location = useLocation();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -21,6 +23,14 @@ export default function HomePage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Clear messages when navigating with ?new=1
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("new") === "1") {
+      setMessages([]);
+    }
+  }, [location.search]);
 
   const handleSendMessage = (e) => {
     e.preventDefault();

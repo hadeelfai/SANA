@@ -1,6 +1,6 @@
 // Sidebar.jsx
 import { useState } from "react";
-import {Link} from "react-router-dom"; // ADD THIS at the top
+import {Link, useNavigate} from "react-router-dom"; // ADD THIS at the top
 
 import {
     Edit,
@@ -26,6 +26,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
     const { language, toggleLanguage } = useLanguage();
     const t = translations[language];
     const { logout } = useAuth();
+    const navigate = useNavigate();
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -94,7 +95,10 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
 
 
                     {/* New Chat */}
-                    <button className="flex items-center gap-4 hover:bg-[#272727] rounded-lg transition px-3 py-2">
+                    <button
+                        onClick={() => navigate("/home?new=1")}
+                        className="flex items-center gap-4 hover:bg-[#272727] rounded-lg transition px-3 py-2"
+                    >
                         <Edit className="w-5 h-5" />
                         {menuOpen && <span className="text-white opacity-50 text-lg">{t.newChat}</span>}
                     </button>
@@ -107,10 +111,17 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                             className="flex items-center justify-between hover:bg-[#272727] rounded-lg transition px-3 py-2 w-full"
                         >
                             <div className="flex items-center gap-4">
-                                {/* Headphones link navigates to New Ticket page */}
-                                <Link to="/tickets/new">
+                                {/* Headphones icon navigates to New Ticket page even when sidebar is closed */}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate("/tickets/new");
+                                    }}
+                                    className="hover:opacity-80"
+                                    aria-label="New Ticket"
+                                >
                                     <Headphones className="w-5 h-5" />
-                                </Link>
+                                </button>
                                 {menuOpen && (
                                     <span className="text-white opacity-50 text-lg">{t.ticketSystem}</span>
                                 )}
@@ -142,8 +153,9 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                                     {t.newTicket}
                                 </Link>
 
-                                {/* MY TICKETS — stays static for now */}
-                                <button
+                                {/* MY TICKETS  */}
+                                <Link
+                                    to="/tickets"
                                     className={
                                         language === "ar"
                                             ? "text-md text-white opacity-50 block w-full text-right hover:bg-[#272727] rounded-lg transition px-3 py-1.5"
@@ -151,14 +163,17 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                                     }
                                 >
                                     {t.myTickets}
-                                </button>
+                                </Link>
                             </div>
                         )}
                     </div>
 
 
 
-                    <button className="flex items-center gap-4 hover:bg-[#272727] rounded-lg transition px-3 py-2">
+                    <button
+                        onClick={() => navigate("/dashboard/employee")}
+                        className="flex items-center gap-4 hover:bg-[#272727] rounded-lg transition px-3 py-2 w-full text-left"
+                    >
                         <LayoutGrid className="w-5 h-5" />
                         {menuOpen && <span className="text-white opacity-50 text-lg">{t.employeeStats}</span>}
                     </button>
@@ -188,7 +203,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                 </div>
 
                 <div className="flex flex-col space-y-2 mb-4 relative">
-                    {menuOpen && settingsOpen && (
+                    {settingsOpen && (
                         <div className={`absolute bottom-full mb-2 ${language === 'ar' ? 'right-0' : 'left-0'} bg-[#3E3E3E] shadow-md rounded-lg overflow-hidden w-60`}>
                             <button
                                 onClick={toggleLanguage}
@@ -204,7 +219,14 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                     )}
 
                     <button
-                        onClick={() => setSettingsOpen(!settingsOpen)}
+                        onClick={() => {
+                            if (!menuOpen) {
+                                setMenuOpen(true);
+                                setSettingsOpen(true);
+                            } else {
+                                setSettingsOpen(!settingsOpen);
+                            }
+                        }}
                         className="flex items-center gap-4 hover:bg-[#272727] rounded-lg transition px-3 py-2"
                     >
                         <Settings className="w-5 h-5" />
