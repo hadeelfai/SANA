@@ -30,7 +30,10 @@ export default function ProfilePage() {
 
             <div className="bg-[#343434] rounded-xl p-6 space-y-4">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-r from-[#2AC0DA] via-[#CEE9E8] to-[#48A07D]" />
+                {/* Profile icon with user's initial */}
+                <div className="w-14 h-14 rounded-full bg-[#2AC0DA] flex items-center justify-center text-2xl font-semibold text-white leading-none">
+                  <span className="text-center">{user?.name ? user.name.charAt(0).toUpperCase() : "U"}</span>
+                </div>
                 <div>
                   <div className="text-xl font-semibold">{user?.name || (language === "ar" ? "مستخدم" : "User")}</div>
                   <div className="opacity-70 text-sm">{user?.email || "-"}</div>
@@ -39,39 +42,25 @@ export default function ProfilePage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
                 <div className="bg-[#2C2C2C] rounded-lg p-4">
-                  <div className="opacity-60 text-sm">{language === "ar" ? "الدور" : "Role"}</div>
+                  <div className="opacity-60 text-sm">{t.role}</div>
                   <div className="mt-1 font-semibold capitalize">{user?.role || "-"}</div>
                 </div>
                 <div className="bg-[#2C2C2C] rounded-lg p-4">
-                  <div className="opacity-60 text-sm">{language === "ar" ? "آخر تسجيل دخول" : "Last Login"}</div>
-                  <div className="mt-1 font-semibold">{language === "ar" ? "—" : "—"}</div>
+                  <div className="opacity-60 text-sm">{t.employeeId}</div>
+                  <div className="mt-1 font-semibold">{user?.employeeId || "-"}</div>
                 </div>
-              </div>
-            </div>
-
-            <div className="bg-[#343434] rounded-xl p-6 space-y-4">
-              <h2 className="text-xl font-semibold">{language === "ar" ? "إعدادات الحساب" : "Account Settings"}</h2>
-              <div className="grid grid-cols-1 gap-3">
-                <button
-                  className="w-full rounded-lg px-6 py-3 transition bg-[#272727]"
-                  style={{
-                    background:
-                      "linear-gradient(#272727, #272727) padding-box, linear-gradient(90deg, #2AC0DA, #CEE9E8, #48A07D) border-box",
-                    border: "2px solid transparent",
-                  }}
-                >
-                  {language === "ar" ? "تغيير كلمة المرور" : "Change Password"}
-                </button>
-                <button
-                  className="w-full rounded-lg px-6 py-3 transition bg-[#272727]"
-                  style={{
-                    background:
-                      "linear-gradient(#272727, #272727) padding-box, linear-gradient(90deg, #2AC0DA, #CEE9E8, #48A07D) border-box",
-                    border: "2px solid transparent",
-                  }}
-                >
-                  {language === "ar" ? "تحديث المعلومات" : "Update Info"}
-                </button>
+                <div className="bg-[#2C2C2C] rounded-lg p-4">
+                  <div className="opacity-60 text-sm">{t.department}</div>
+                  <div className="mt-1 font-semibold">{user?.department || user?.team || "-"}</div>
+                </div>
+                <div className="bg-[#2C2C2C] rounded-lg p-4">
+                  <div className="opacity-60 text-sm">{t.position}</div>
+                  <div className="mt-1 font-semibold">{user?.position || "-"}</div>
+                </div>
+                <div className="bg-[#2C2C2C] rounded-lg p-4 sm:col-span-2">
+                  <div className="opacity-60 text-sm">{t.location}</div>
+                  <div className="mt-1 font-semibold">{user?.location || user?.officeBranch || user?.floor || user?.building || "-"}</div>
+                </div>
               </div>
             </div>
           </div>

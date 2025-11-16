@@ -1,5 +1,5 @@
 // Sidebar.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {Link, useNavigate} from "react-router-dom"; // ADD THIS at the top
 
 import {
@@ -23,15 +23,130 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [chatHistory, setChatHistory] = useState([]);
+    const [filteredHistory, setFilteredHistory] = useState([]);
     const { language, toggleLanguage } = useLanguage();
     const t = translations[language];
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
     const navigate = useNavigate();
 
+    // Get user-specific chat history key
+    const getChatHistoryKey = () => {
+        return user?._id ? `sana_chat_history_${user._id}` : "sana_chat_history";
+    };
+
+    // Load chat history from localStorage
+    const loadChatHistory = () => {
+        try {
+            const key = getChatHistoryKey();
+            const stored = localStorage.getItem(key);
+            return stored ? JSON.parse(stored) : [];
+        } catch {
+            return [];
+        }
+    };
+
+    // Update chat history when component mounts or when menu opens
+    useEffect(() => {
+        if (menuOpen && user?._id) {
+            const history = loadChatHistory();
+            setChatHistory(history);
+            if (!searchQuery.trim()) {
+                setFilteredHistory(history);
+            }
+        }
+    }, [menuOpen, user?._id]);
+
+    // Refresh chat history when storage changes (for cross-tab updates)
+    useEffect(() => {
+        if (!menuOpen || !user?._id) return;
+        
+        const chatHistoryKey = getChatHistoryKey();
+        
+        const handleStorageChange = (e) => {
+            if (e.key === chatHistoryKey) {
+                const history = loadChatHistory();
+                setChatHistory(history);
+                if (!searchQuery.trim()) {
+                    setFilteredHistory(history);
+                }
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        
+        // Also check periodically for same-tab updates
+        const interval = setInterval(() => {
+            const history = loadChatHistory();
+            if (history.length !== chatHistory.length) {
+                setChatHistory(history);
+                if (!searchQuery.trim()) {
+                    setFilteredHistory(history);
+                }
+            }
+        }, 2000); // Check every 2 seconds
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            clearInterval(interval);
+        };
+    }, [menuOpen, searchQuery, chatHistory.length, user?._id]);
+
+    // Get user's initial letter
+    const getUserInitial = () => {
+        if (!user?.name) return "U";
+        return user.name.charAt(0).toUpperCase();
+    };
+
+    // Search functionality
     const handleSearch = (e) => {
         e.preventDefault();
-        // Add your search logic here
-        console.log("Searching for:", searchQuery);
+        if (!searchQuery.trim()) {
+            setFilteredHistory(chatHistory);
+            return;
+        }
+
+        const query = searchQuery.toLowerCase().trim();
+        const filtered = chatHistory.filter((chat) => {
+            // Search in title
+            if (chat.title?.toLowerCase().includes(query)) return true;
+            // Search in messages
+            if (chat.messages) {
+                return chat.messages.some((msg) =>
+                    msg.text?.toLowerCase().includes(query)
+                );
+            }
+            return false;
+        });
+        setFilteredHistory(filtered);
+    };
+
+    // Update filtered history when search query changes
+    useEffect(() => {
+        if (!searchQuery.trim()) {
+            setFilteredHistory(chatHistory);
+        } else {
+            const query = searchQuery.toLowerCase().trim();
+            const filtered = chatHistory.filter((chat) => {
+                // Search in title
+                if (chat.title?.toLowerCase().includes(query)) return true;
+                // Search in messages
+                if (chat.messages) {
+                    return chat.messages.some((msg) =>
+                        msg.text?.toLowerCase().includes(query)
+                    );
+                }
+                return false;
+            });
+            setFilteredHistory(filtered);
+        }
+    }, [searchQuery, chatHistory]);
+
+    // Load a chat from history
+    const loadChat = (chatId) => {
+        navigate(`/home?chatId=${chatId}`);
+        setSearchOpen(false);
+        setSearchQuery("");
     };
 
 
@@ -71,6 +186,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                                 onClick={() => {
                                     setSearchOpen(false);
                                     setSearchQuery("");
+                                    setFilteredHistory(chatHistory);
                                 }}
                                 className="hover:text-gray-400 transition"
                             >
@@ -79,8 +195,10 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                             <input
                                 type="text"
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder={language === 'ar' ? 'ابحث...' : 'Search...'}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                }}
+                                placeholder={language === 'ar' ? 'ابحث في المحادثات...' : 'Search chats...'}
                                 className="flex-1 bg-[#272727] text-white px-3 py-1.5 rounded-lg outline-none focus:ring-2 focus:ring-[#2AC0DA] transition text-sm"
                                 autoFocus
                             />
@@ -106,12 +224,9 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
 
                     {/* Tickets */}
                     <div className="space-y-1 w-full">
-                        <button
-                            onClick={() => setTicketsOpen(!ticketsOpen)}
-                            className="flex items-center justify-between hover:bg-[#272727] rounded-lg transition px-3 py-2 w-full"
-                        >
-                            <div className="flex items-center gap-4">
-                                {/* Headphones icon navigates to New Ticket page even when sidebar is closed */}
+                        <div className="flex items-center justify-between hover:bg-[#272727] rounded-lg transition px-3 py-2 w-full">
+                            <div className="flex items-center gap-4 flex-1">
+                                {/* Headphones icon navigates to New Ticket page */}
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -123,17 +238,19 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                                     <Headphones className="w-5 h-5" />
                                 </button>
                                 {menuOpen && (
-                                    <span className="text-white opacity-50 text-lg">{t.ticketSystem}</span>
+                                    <button
+                                        onClick={() => setTicketsOpen(!ticketsOpen)}
+                                        className="flex items-center justify-between flex-1 text-left"
+                                    >
+                                        <span className="text-white opacity-50 text-lg">{t.ticketSystem}</span>
+                                        <ChevronUp
+                                            className={`w-5 h-5 text-white opacity-50 transition-transform ${ticketsOpen ? "" : "rotate-180"
+                                                }`}
+                                        />
+                                    </button>
                                 )}
                             </div>
-
-                            {menuOpen && (
-                                <ChevronUp
-                                    className={`w-5 h-5 text-white opacity-50 transition-transform ${ticketsOpen ? "" : "rotate-180"
-                                        }`}
-                                />
-                            )}
-                        </button>
+                        </div>
 
                         {menuOpen && ticketsOpen && (
                             <div
@@ -170,20 +287,33 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
 
 
 
-                    <button
-                        onClick={() => navigate("/dashboard/employee")}
-                        className="flex items-center gap-4 hover:bg-[#272727] rounded-lg transition px-3 py-2 w-full text-left"
-                    >
-                        <LayoutGrid className="w-5 h-5" />
-                        {menuOpen && <span className="text-white opacity-50 text-lg">{t.employeeStats}</span>}
-                    </button>
+                    {user?.role === "admin" ? (
+                        <button
+                            onClick={() => navigate("/dashboard/admin")}
+                            className="flex items-center gap-4 hover:bg-[#272727] rounded-lg transition px-3 py-2 w-full text-left"
+                        >
+                            <LayoutGrid className="w-5 h-5" />
+                            {menuOpen && <span className="text-white opacity-50 text-lg">{t.adminDashboard}</span>}
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => navigate("/dashboard/employee")}
+                            className="flex items-center gap-4 hover:bg-[#272727] rounded-lg transition px-3 py-2 w-full text-left"
+                        >
+                            <LayoutGrid className="w-5 h-5" />
+                            {menuOpen && <span className="text-white opacity-50 text-lg">{t.employeeStats}</span>}
+                        </button>
+                    )}
 
                     {menuOpen && (
                         <button
                             onClick={() => navigate("/profile")}
                             className="flex items-center gap-4 hover:bg-[#272727] rounded-lg transition px-3 py-2"
                         >
-                            <User className="w-5 h-5" />
+                            {/* Profile icon with user's initial */}
+                            <div className="w-5 h-5 rounded-full bg-[#2AC0DA] flex items-center justify-center text-xs font-semibold text-white leading-none">
+                                <span className="text-center">{getUserInitial()}</span>
+                            </div>
                             <span className="text-white opacity-50 text-lg">{t.profile}</span>
                         </button>
                     )}
@@ -191,15 +321,31 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                     {menuOpen && (
                         <div className="pt-4 border-t border-[#404040]">
                             <h3 className="text-lg text-white px-2 pb-2">{t.recent}</h3>
-                            <div className="space-y-2">
-                                <div className="border border-teal-400 p-[2px] bg-gradient-to-r from-[#2AC0DA] via-[#CEE9E8] to-[#48A07D] rounded-lg text-sm font-thin text-white opacity-50">
-                                    <div className="px-3 py-2 bg-[#343434] hover:bg-[#272727]">
-                                        {t.salaryQuestion}
+                            <div className="space-y-2 max-h-64 overflow-y-auto">
+                                {filteredHistory.length === 0 ? (
+                                    <div className="px-3 py-2 text-sm text-white opacity-30">
+                                        {searchQuery.trim() 
+                                            ? (language === 'ar' ? 'لا توجد نتائج' : 'No results found')
+                                            : (language === 'ar' ? 'لا توجد محادثات سابقة' : 'No chat history')
+                                        }
                                     </div>
-                                </div>
-                                <div className="px-3 py-2 hover:bg-[#272727] rounded-lg text-sm font-thin text-white opacity-50 transition">
-                                    {t.vacationDays}
-                                </div>
+                                ) : (
+                                    filteredHistory.map((chat, index) => (
+                                        <button
+                                            key={chat.id || index}
+                                            onClick={() => loadChat(chat.id)}
+                                            className={`w-full text-left px-3 py-2 hover:bg-[#272727] rounded-lg text-sm font-thin text-white opacity-50 transition ${
+                                                index === 0 && !searchQuery.trim()
+                                                    ? 'border border-teal-400 p-[2px] bg-gradient-to-r from-[#2AC0DA] via-[#CEE9E8] to-[#48A07D] rounded-lg'
+                                                    : ''
+                                            }`}
+                                        >
+                                            <div className={index === 0 && !searchQuery.trim() ? 'px-3 py-2 bg-[#343434] hover:bg-[#272727] rounded-lg' : ''}>
+                                                {chat.title || (language === 'ar' ? 'محادثة جديدة' : 'New Chat')}
+                                            </div>
+                                        </button>
+                                    ))
+                                )}
                             </div>
                         </div>
                     )}

@@ -13,14 +13,28 @@ export default function SignInPage() {
     setError("");
     setSubmitting(true);
     try {
-      const res = await fetch("/api/v1/auth/user/login", {
+      // Try user login first
+      let res = await fetch("/api/v1/auth/user/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || "Login failed");
+      
+      let data = await res.json();
+      
+      // If user login fails, try admin login
+      if (!res.ok) {
+        res = await fetch("/api/v1/auth/admin/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email, password }),
+        });
+        data = await res.json();
+      }
+      
+      if (!res.ok) throw new Error(data?.message || "Invalid credentials");
       navigate("/home");
     } catch (err) {
       setError(err.message);

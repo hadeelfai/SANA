@@ -16,6 +16,64 @@ export default function HomePage() {
   const { user } = useAuth();
   const location = useLocation();
 
+  // Get user-specific keys
+  const getChatHistoryKey = () => {
+    return user?._id ? `sana_chat_history_${user._id}` : "sana_chat_history";
+  };
+
+  const getCurrentChatKey = () => {
+    return user?._id ? `sana_current_chat_${user._id}` : "sana_current_chat";
+  };
+
+  const getCurrentChatIdKey = () => {
+    return user?._id ? `sana_current_chat_id_${user._id}` : "sana_current_chat_id";
+  };
+
+  // Load chat history from localStorage
+  const loadChatHistory = () => {
+    try {
+      const key = getChatHistoryKey();
+      const stored = localStorage.getItem(key);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  // Save chat history to localStorage
+  const saveChatHistory = (history) => {
+    try {
+      const key = getChatHistoryKey();
+      localStorage.setItem(key, JSON.stringify(history));
+    } catch (error) {
+      console.error("Failed to save chat history:", error);
+    }
+  };
+
+  // Save current chat to localStorage
+  const saveCurrentChat = (chatMessages) => {
+    try {
+      if (chatMessages.length > 0) {
+        const key = getCurrentChatKey();
+        localStorage.setItem(key, JSON.stringify(chatMessages));
+      }
+    } catch (error) {
+      console.error("Failed to save current chat:", error);
+    }
+  };
+
+  // Load a specific chat from history
+  const loadChatFromHistory = (chatId) => {
+    const history = loadChatHistory();
+    const chat = history.find((c) => c.id === chatId);
+    if (chat) {
+      setMessages(chat.messages || []);
+      // Save current chat ID to localStorage for tracking
+      const key = getCurrentChatIdKey();
+      localStorage.setItem(key, chatId.toString());
+    }
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -24,22 +82,64 @@ export default function HomePage() {
     scrollToBottom();
   }, [messages]);
 
+  // Track previous user ID to detect user changes
+  const prevUserIdRef = useRef(null);
+  
+  // Clear messages when user changes (different user logs in)
+  useEffect(() => {
+    if (user?._id && prevUserIdRef.current !== null && prevUserIdRef.current !== user._id) {
+      // User has changed - clear messages
+      setMessages([]);
+    }
+    prevUserIdRef.current = user?._id;
+  }, [user?._id]);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    if (messages.length > 0 && user?._id) {
+      saveCurrentChat(messages);
+    }
+  }, [messages, user?._id]);
+
   // Clear messages when navigating with ?new=1
   useEffect(() => {
+    if (!user?._id) return; // Wait for user to be loaded
+    
     const params = new URLSearchParams(location.search);
     if (params.get("new") === "1") {
       setMessages([]);
+      localStorage.removeItem(getCurrentChatKey());
+      localStorage.removeItem(getCurrentChatIdKey());
+    } else {
+      // Check if we should load a specific chat from history
+      const chatId = params.get("chatId");
+      if (chatId) {
+        loadChatFromHistory(parseInt(chatId));
+      } else {
+        // Try to load current chat if exists
+        try {
+          const currentChat = localStorage.getItem(getCurrentChatKey());
+          if (currentChat) {
+            setMessages(JSON.parse(currentChat));
+          }
+        } catch {
+          // Ignore errors
+        }
+      }
     }
-  }, [location.search]);
+  }, [location.search, user?._id]);
 
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (inputValue.trim() === "") return;
 
+    const messageText = inputValue.trim();
+    const isNewChat = messages.length === 0;
+
     // Add user message
     const userMessage = {
       id: Date.now(),
-      text: inputValue,
+      text: messageText,
       sender: "user",
       timestamp: new Date().toLocaleTimeString(language === 'ar' ? 'ar-SA' : 'en-US', { 
         hour: '2-digit', 
@@ -47,8 +147,27 @@ export default function HomePage() {
       })
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInputValue("");
+
+    // If this is a new chat, save it to history
+    if (isNewChat) {
+      const chatId = Date.now();
+      const history = loadChatHistory();
+      const newChat = {
+        id: chatId,
+        title: messageText.length > 30 ? messageText.substring(0, 30) + "..." : messageText,
+        messages: [],
+        createdAt: new Date().toISOString(),
+      };
+      history.unshift(newChat);
+      // Keep only last 50 chats
+      if (history.length > 50) {
+        history.splice(50);
+      }
+      saveChatHistory(history);
+    }
 
     // Simulate AI response after a short delay
     setTimeout(() => {
@@ -63,9 +182,33 @@ export default function HomePage() {
           minute: '2-digit' 
         })
       };
-      setMessages(prev => [...prev, aiMessage]);
+      const finalMessages = [...updatedMessages, aiMessage];
+      setMessages(finalMessages);
+
+      // Update chat history with complete conversation
+      if (isNewChat) {
+        const history = loadChatHistory();
+        if (history.length > 0) {
+          history[0].messages = finalMessages;
+          saveChatHistory(history);
+        }
+      } else {
+        // Update existing chat in history
+        const history = loadChatHistory();
+        const currentChatId = location.search.includes("chatId=") 
+          ? new URLSearchParams(location.search).get("chatId")
+          : localStorage.getItem(getCurrentChatIdKey());
+        if (currentChatId) {
+          const chatIndex = history.findIndex((c) => c.id === parseInt(currentChatId));
+          if (chatIndex !== -1) {
+            history[chatIndex].messages = finalMessages;
+            saveChatHistory(history);
+          }
+        }
+      }
     }, 1000);
   };
+
 
   return (
     <div className="min-h-screen bg-[#272727] text-white font-normal flex flex-col" dir={language === 'ar' ? 'rtl' : 'ltr'}>

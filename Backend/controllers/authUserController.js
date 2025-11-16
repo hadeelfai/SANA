@@ -13,8 +13,21 @@ export const userSignup = async (req, res) => {
         .json({ errors: errors.array() });
     }
 
-    const { name, email, password, role, specialization } =
-      req.body;
+    const { 
+      name, 
+      email, 
+      password, 
+      role, 
+      specialization,
+      employeeId,
+      department,
+      team,
+      position,
+      location,
+      officeBranch,
+      floor,
+      building
+    } = req.body;
     if (!email || !password || !name || !role) {
       return res.status(400).json({
         success: false,
@@ -66,6 +79,14 @@ export const userSignup = async (req, res) => {
       password: hashedPassword,
       role,
       specialization,
+      employeeId,
+      department,
+      team,
+      position,
+      location,
+      officeBranch,
+      floor,
+      building,
     };
 
     // If the user is an engineer, add assignedTickets field

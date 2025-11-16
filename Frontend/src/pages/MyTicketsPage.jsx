@@ -38,7 +38,14 @@ export default function MyTicketsPage() {
         });
         if (!res.ok) throw new Error("Failed to fetch tickets");
         const data = await res.json();
-        if (alive) setTickets(data?.tickets || data || []);
+        const ticketsData = data?.tickets || data || [];
+        // Sort tickets by newest first (by createdAt date, descending)
+        const sortedTickets = ticketsData.sort((a, b) => {
+          const dateA = new Date(a.createdAt);
+          const dateB = new Date(b.createdAt);
+          return dateB - dateA; // Descending order (newest first)
+        });
+        if (alive) setTickets(sortedTickets);
       } catch {
         if (alive) setTickets([]);
       } finally {

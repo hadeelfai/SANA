@@ -31,6 +31,38 @@ const userSchema = new mongoose.Schema({
     specialization: {
         type: String,
         default: "General Support",
+    },
+    employeeId: {
+        type: String,
+        trim: true,
+    },
+    department: {
+        type: String,
+        trim: true,
+    },
+    team: {
+        type: String,
+        trim: true,
+    },
+    position: {
+        type: String,
+        trim: true,
+    },
+    location: {
+        type: String,
+        trim: true,
+    },
+    officeBranch: {
+        type: String,
+        trim: true,
+    },
+    floor: {
+        type: String,
+        trim: true,
+    },
+    building: {
+        type: String,
+        trim: true,
     }
 }, { 
     timestamps: true,

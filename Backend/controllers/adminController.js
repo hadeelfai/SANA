@@ -4,18 +4,20 @@ import mongoose from "mongoose";
 // Get all tickets (Admin only)
 export const getAllTickets = async (req, res) => {
   try {
-    const tickets = await Ticket.find()
-      .populate("assignedTo", "name email")
-      .populate("createdBy", "name email");
-    if (!tickets || tickets.length === 0) {
-      return res.status(404).json({
+    // Check if user is admin
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({
         success: false,
-        message: "No tickets found",
+        message: "Access denied. Admin only.",
       });
     }
+    const tickets = await Ticket.find()
+      .populate("assignedTo", "name email")
+      .populate("createdBy", "name email")
+      .sort({ createdAt: -1 }); // Sort by newest first
     res.status(200).json({
       success: true,
-      tickets,
+      tickets: tickets || [],
     });
   } catch (err) {
     console.error(err);
@@ -25,25 +27,23 @@ export const getAllTickets = async (req, res) => {
   }
 };
 
-// Get all tickets (Admin only)
+// Get all users (Admin only)
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({ role: "user" });
-    if (!users || users.length === 0) {
-      return res.status(404).json({
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({
         success: false,
-        message: "No users found",
+        message: "Access denied. Admin only.",
       });
     }
+    const users = await User.find({}).sort({ createdAt: -1 }); // Now includes ALL roles
     res.status(200).json({
       success: true,
-      users,
+      users: users || [],
     });
   } catch (err) {
     console.error(err);
-    res
-      .status(500)
-      .json({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -253,6 +253,47 @@ export const assignTicketToEngineer = async (req, res) => {
   }
 };
 
+// Assign the ticket to another admin
+export const assignTicketToAdmin = async (req, res) => {
+  try {
+    const { id, adminId } = req.body;
+    if (!id || !adminId) {
+      return res.status(400).json({
+        success: false,
+        message: "ticketId and adminId are required",
+      });
+    }
+    // Find the ticket
+    const ticket = await Ticket.findById(id);
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: "Ticket not found",
+      });
+    }
+    // Find the admin
+    const admin = await User.findById(adminId);
+    if (!admin || admin.role !== "admin") {
+      return res.status(400).json({
+        success: false,
+        message: "Admin not found or user is not an admin",
+      });
+    }
+    // Assign the ticket
+    ticket.assignedTo = adminId;
+    ticket.status = "assigned";
+    await ticket.save();
+    res.status(200).json({
+      success: true,
+      message: "Ticket assigned to admin successfully",
+      ticket,
+    });
+  } catch (error) {
+    console.error("Error assigning ticket to admin:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 // Get all engineers (Admin only)
 export const getAllEngineers = async (req, res) => {
   try {
@@ -272,6 +313,27 @@ export const getAllEngineers = async (req, res) => {
     res
       .status(500)
       .json({ success: false, message: "Server error" });
+  }
+};
+
+// Get all admins (Admin only)
+export const getAllAdmins = async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admin only.",
+      });
+    }
+    const admins = await User.find({ role: "admin" }).sort({ createdAt: -1 });
+    res.status(200).json({
+      success: true,
+      admins: admins || [],
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -337,6 +399,74 @@ export const deleteUser = async (req, res) => {
     });
   } catch (error) {
     console.error("Error deleting user:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+// Update user employee info (Admin only)
+export const updateUserInfo = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const {
+      employeeId,
+      department,
+      team,
+      position,
+      location,
+      officeBranch,
+      floor,
+      building,
+      name,
+      email,
+      specialization,
+    } = req.body;
+
+    // Validate userId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID",
+      });
+    }
+
+    // Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Update only provided fields
+    if (employeeId !== undefined) user.employeeId = employeeId;
+    if (department !== undefined) user.department = department;
+    if (team !== undefined) user.team = team;
+    if (position !== undefined) user.position = position;
+    if (location !== undefined) user.location = location;
+    if (officeBranch !== undefined) user.officeBranch = officeBranch;
+    if (floor !== undefined) user.floor = floor;
+    if (building !== undefined) user.building = building;
+    if (name !== undefined) user.name = name;
+    if (email !== undefined) user.email = email.toLowerCase();
+    if (specialization !== undefined) user.specialization = specialization;
+
+    await user.save();
+
+    // Remove password from response
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    res.status(200).json({
+      success: true,
+      message: "User information updated successfully",
+      user: userResponse,
+    });
+  } catch (error) {
+    console.error("Error updating user info:", error);
     res.status(500).json({
       success: false,
       message: "Server error",

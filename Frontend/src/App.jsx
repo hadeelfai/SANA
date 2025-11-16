@@ -8,6 +8,7 @@ import MyTicketsPage from "./pages/MyTicketsPage.jsx";
 import TicketDetailsPage from "./pages/TicketDetailsPage.jsx";
 import EmployeeDashboardPage from "./pages/EmployeeDashboardPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
+import AdminDashboardPage from "./pages/AdminDashboardPage.jsx";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
       <Route path="/tickets" element={<MyTicketsPage />} />
       <Route path="/tickets/:id" element={<TicketDetailsPage />} />
       <Route path="/dashboard/employee" element={<EmployeeDashboardPage />} />
+      <Route path="/dashboard/admin" element={<AdminDashboardPage />} />
     </Routes>
   );
 }

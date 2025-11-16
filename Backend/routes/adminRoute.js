@@ -10,7 +10,11 @@ import {
   deleteTicket,
   deleteUser,
   updateTicketPriority,
+  updateUserInfo,
+  getAllAdmins,
+  assignTicketToAdmin,
 } from "../controllers/adminController.js";
+import { addComment, getTicketById } from "../controllers/userController.js";
 
 const router = express.Router();
 
@@ -29,6 +33,7 @@ router.get(
   "/all-engineers",
   getAllEngineers
 );
+router.get("/all-admins", getAllAdmins);
 
 // Get tickets for the logged-in user
 router.get(
@@ -47,6 +52,10 @@ router.patch(
   assignTicketToEngineer
 );
 router.patch(
+  "/assigned-ticket-admin",
+  assignTicketToAdmin
+);
+router.patch(
   "/:ticketId/priority",
   updateTicketPriority
 );
@@ -57,6 +66,18 @@ router.delete(
 router.delete(
   "/delete-user/:userId",
   deleteUser
+);
+router.patch(
+  "/update-user/:userId",
+  updateUserInfo
+);
+router.post(
+  "/tickets/:ticketId/comments",
+  addComment
+);
+router.get(
+  "/tickets/:id",
+  getTicketById
 );
 
 

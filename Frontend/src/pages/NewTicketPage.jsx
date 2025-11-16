@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useLanguage } from "../contexts/LanguageContext.jsx";
 import { translations } from "../translations.js";
@@ -6,9 +7,11 @@ import { translations } from "../translations.js";
 export default function NewTicketPage() {
   const { language } = useLanguage();
   const t = useMemo(() => translations[language], [language]);
+  const navigate = useNavigate();
 
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("general");
+  const [category, setCategory] = useState("Hardware");
+  const [subcategory, setSubcategory] = useState("");
   const [priority, setPriority] = useState("low");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -32,6 +35,7 @@ export default function NewTicketPage() {
           title,
           description,
           category,
+          subcategory,
           priority,
         }),
       });
@@ -39,15 +43,8 @@ export default function NewTicketPage() {
       if (!res.ok || data?.success === false) {
         throw new Error(data?.message || "Failed to create ticket");
       }
-      setMessage(
-        language === "ar"
-          ? "تم إنشاء التذكرة بنجاح"
-          : "Ticket created successfully"
-      );
-      setTitle("");
-      setDescription("");
-      setPriority("low");
-      setCategory("general");
+      // Redirect to tickets page after successful creation
+      navigate("/tickets");
     } catch (err) {
       setMessage(
         language === "ar"
@@ -101,10 +98,12 @@ export default function NewTicketPage() {
                 onChange={(e) => setCategory(e.target.value)}
                 required
               >
-                <option value="general">{t.categoryGeneral}</option>
-                <option value="network">{t.categoryNetwork}</option>
-                <option value="software">{t.categorySoftware}</option>
-                <option value="hardware">{t.categoryHardware}</option>
+                <option value="Hardware">{t.categoryHardware}</option>
+                <option value="Software">{t.categorySoftware}</option>
+                <option value="Network">{t.categoryNetwork}</option>
+                <option value="Access">{t.categoryAccess}</option>
+                <option value="Request">{t.categoryRequest}</option>
+                <option value="Incident">{t.categoryIncident}</option>
               </select>
             </div>
             <div>
@@ -126,6 +125,18 @@ export default function NewTicketPage() {
                 <option className="text-red-400" value="high">{t.highPriority}</option>
               </select>
             </div>
+          </div>
+
+          {/* Subcategory */}
+          <div>
+            <label className="block mb-2 opacity-80">{t.subcategory}</label>
+            <input
+              type="text"
+              className="w-full bg-[#343434] rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-[#3A3A3A]"
+              value={subcategory}
+              onChange={(e) => setSubcategory(e.target.value)}
+              placeholder={language === "ar" ? "مثال: مشكلة الطابعة، الوصول إلى VPN، خطأ في البريد الإلكتروني" : "e.g., Printer issue, VPN access, Email error"}
+            />
           </div>
 
           {/* Description */}

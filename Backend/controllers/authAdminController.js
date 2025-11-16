@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import Admin from "../models/adminModel.js"; // Import the Admin model
+import User from "../models/userModel.js"; // Use unified User model
 import { validationResult } from "express-validator";
 import { generateTokenAndSetCookie } from "../utils/generateToken.js";
 import { Ticket } from "../models/ticketModel.js";
@@ -42,7 +42,7 @@ export const adminSignup = async (req, res) => {
     }
 
     // Check if the email already exists in the database
-    const existingUser = await Admin.findOne({ email });
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res
         .status(400)
@@ -52,8 +52,8 @@ export const adminSignup = async (req, res) => {
     // Hash the password before saving to the database
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create a new user
-    const newUser = new Admin({
+    // Create a new user with admin role
+    const newUser = new User({
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
@@ -97,22 +97,16 @@ export async function adminLogin(req, res) {
       });
     }
 
-    // Check if user exists using email
-    const user = await Admin.findOne({
+    // Check if user exists using email and has admin role
+    const user = await User.findOne({
       email: email.toLowerCase(),
+      role: "admin",
     });
 
     if (!user) {
       return res.status(404).json({
         success: false,
         message: "Invalid credentials",
-      });
-    }
-    // Check if the user is an admin
-    if (user.role !== "admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. Admins only.",
       });
     }
     // Check password match

@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 // Create a new ticket
 export const createTicket = async (req, res) => {
   try {
-    const { title, description, priority, category } =
+    const { title, description, priority, category, subcategory } =
       req.body;
     const userId = req.user._id; // Assuming you have a user object set by the auth middleware
 
@@ -13,6 +13,7 @@ export const createTicket = async (req, res) => {
       description,
       priority,
       category,
+      subcategory,
       createdBy: userId,
     });
 

@@ -16,6 +16,10 @@ const commentSchema = new mongoose.Schema({
 });
 const ticketSchema = new mongoose.Schema(
   {
+    ticketId: {
+      type: String,
+      unique: true,
+    },
     title: {
       type: String,
       required: true,
@@ -27,11 +31,16 @@ const ticketSchema = new mongoose.Schema(
     },
     category: {
       type: String,
+      enum: ["Hardware", "Software", "Network", "Access", "Request", "Incident"],
       required: true,
+    },
+    subcategory: {
+      type: String,
+      trim: true,
     },
     status: {
       type: String,
-      enum: ["new", "in_progress", "resolved", "assigned","not_resolved"],
+      enum: ["new", "in_progress", "resolved", "assigned", "not_resolved"],
       default: "new",
     },
     createdBy: {
@@ -52,6 +61,30 @@ const ticketSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Generate unique ticket ID before saving
+ticketSchema.pre('save', async function(next) {
+  if (!this.ticketId) {
+    // Generate ticket ID: TKT-YYYYMMDD-XXXXX (5 random alphanumeric)
+    const date = new Date();
+    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+    let isUnique = false;
+    let ticketId;
+    
+    // Ensure uniqueness
+    while (!isUnique) {
+      const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
+      ticketId = `TKT-${dateStr}-${randomStr}`;
+      // Use this.constructor to get the model
+      const existing = await this.constructor.findOne({ ticketId });
+      if (!existing) {
+        isUnique = true;
+        this.ticketId = ticketId;
+      }
+    }
+  }
+  next();
+});
 
 export const Ticket = mongoose.model(
   "Ticket",
