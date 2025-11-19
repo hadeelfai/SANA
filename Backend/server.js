@@ -8,6 +8,7 @@ import cookieParser from "cookie-parser";
 import { protectRoute } from "./middleware/protectRoute.js";
 import path from "path";
 import adminRoutes from "./routes/adminRoute.js";
+import dashboardRoute from "./routes/dashboardRoute.js";
 
 const app = express();
 const PORT = envVars.PORT || 10000; // Default to 5000 if no PORT is defined in envVars
@@ -22,6 +23,12 @@ app.use(
   protectRoute,
   adminRoutes
 );
+
+// ✅ DASHBOARD ROUTE MUST COME BEFORE ANYTHING THAT OVERLAPS
+app.use("/api/v1/dashboard", protectRoute, dashboardRoute);
+
+
+
 
 const __dirname = path.resolve();
 
