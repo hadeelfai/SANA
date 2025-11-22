@@ -4,6 +4,7 @@ import authAdminRoutes from "./routes/authAdminRoute.js";
 import userRoutes from "./routes/userRoute.js";
 import adminRoutes from "./routes/adminRoute.js";
 import dashboardRoute from "./routes/dashboardRoute.js";
+import ragRoutes from "./routes/ragRoutes.js"; // added from remote
 import { envVars } from "./config/envVars.js";
 import { connectDB } from "./config/db.js";
 import cookieParser from "cookie-parser";
@@ -24,11 +25,12 @@ app.use("/api/v1/auth/admin", authAdminRoutes);
 app.use("/api/v1/users", protectRoute, userRoutes); // user profile, CRUD
 app.use("/api/v1/admin/dashboard", protectRoute, adminRoutes); // admin-only
 
-// ✅ DASHBOARD ROUTE MUST COME BEFORE ANYTHING THAT OVERLAPS
+// Dashboard must load before overlapping routes
 app.use("/api/v1/dashboard", protectRoute, dashboardRoute);
 
-// -----------------------------------------------------------
-// Serve frontend
+// RAG ROUTE
+app.use("/api/v1/rag", ragRoutes);
+
 const __dirname = path.resolve();
 if (envVars.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "/frontend/dist")));
@@ -38,6 +40,6 @@ if (envVars.NODE_ENV === "production") {
 }
 
 app.listen(PORT, "0.0.0.0", () => {
-console.log(`Server started on port ${PORT}`);
+  console.log(`Server started on port ${PORT}`);
   connectDB();
 });

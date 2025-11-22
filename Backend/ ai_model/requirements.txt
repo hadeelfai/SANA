@@ -1,0 +1,13 @@
+pandas
+numpy
+python-dotenv
+openai
+sentence-transformers
+langchain-community
+langchain-huggingface
+faiss-cpu
+rank-bm25
+scikit-learn
+nltk
+fastapi
+uvicorn
