@@ -9,6 +9,8 @@ import { protectRoute } from "./middleware/protectRoute.js";
 import path from "path";
 import adminRoutes from "./routes/adminRoute.js";
 import dashboardRoute from "./routes/dashboardRoute.js";
+import ragRoutes from "./routes/ragRoutes.js";
+
 
 const app = express();
 const PORT = envVars.PORT || 10000; // Default to 5000 if no PORT is defined in envVars
@@ -26,6 +28,8 @@ app.use(
 
 // ✅ DASHBOARD ROUTE MUST COME BEFORE ANYTHING THAT OVERLAPS
 app.use("/api/v1/dashboard", protectRoute, dashboardRoute);
+app.use("/api/v1/rag", ragRoutes);
+
 
 
 
