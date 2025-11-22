@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
@@ -7,6 +8,7 @@ export default function SignInPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { setUser } = useAuth();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -35,6 +37,12 @@ export default function SignInPage() {
       }
       
       if (!res.ok) throw new Error(data?.message || "Invalid credentials");
+
+      // Update auth context with user data
+      if (data?.user) {
+        setUser(data.user);
+      }
+
       navigate("/home");
     } catch (err) {
       setError(err.message);
