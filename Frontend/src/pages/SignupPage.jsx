@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useLanguage } from "../contexts/LanguageContext.jsx";
+import { useAuth } from "../contexts/AuthContext.jsx";
 import { translations } from "../translations.js";
 
 export default function SignupPage() {
@@ -14,6 +15,7 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const { language, toggleLanguage } = useLanguage();
+  const { setUser } = useAuth();
   const t = useMemo(() => translations[language], [language]);
 
   const handleSubmit = async (e) => {
@@ -39,6 +41,12 @@ export default function SignupPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Signup failed");
+
+      // Update auth context with user data
+      if (data?.user) {
+        setUser(data.user);
+      }
+
       navigate("/home");
     } catch (err) {
       setError(err.message);
