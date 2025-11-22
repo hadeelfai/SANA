@@ -10,6 +10,7 @@ export default function HomePage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { language } = useLanguage();
   const t = translations[language];
   const messagesEndRef = useRef(null);
@@ -65,12 +66,50 @@ export default function HomePage() {
   // Load a specific chat from history
   const loadChatFromHistory = (chatId) => {
     const history = loadChatHistory();
-    const chat = history.find((c) => c.id === chatId);
+    if (!history || history.length === 0) {
+      console.warn("No chat history found");
+      setMessages([]);
+      return;
+    }
+    
+    // Try both string and number comparison since IDs might be stored differently
+    const chatIdStr = chatId?.toString();
+    const chatIdNum = typeof chatId === 'string' ? parseInt(chatId) : chatId;
+    
+    const chat = history.find((c) => {
+      if (!c || !c.id) return false;
+      const cIdStr = c.id.toString();
+      const cIdNum = typeof c.id === 'string' ? parseInt(c.id) : c.id;
+      return c.id === chatId || c.id === chatIdNum || cIdStr === chatIdStr || cIdNum === chatIdNum;
+    });
+    
     if (chat) {
-      setMessages(chat.messages || []);
-      // Save current chat ID to localStorage for tracking
-      const key = getCurrentChatIdKey();
-      localStorage.setItem(key, chatId.toString());
+      // Check if chat has messages array
+      if (chat.messages && Array.isArray(chat.messages) && chat.messages.length > 0) {
+        setMessages(chat.messages);
+        // Save current chat ID to localStorage for tracking
+        const key = getCurrentChatIdKey();
+        localStorage.setItem(key, chatIdStr);
+        // Also save current chat
+        saveCurrentChat(chat.messages);
+      } else {
+        console.warn("Chat found but has no messages:", chatId, chat);
+        setMessages([]);
+      }
+    } else {
+      console.warn("Chat not found in history:", chatId, "Available IDs:", history.map(c => c.id));
+      setMessages([]);
+    }
+  };
+
+  // Clear current chat messages
+  const handleClearMessages = () => {
+    setMessages([]);
+    localStorage.removeItem(getCurrentChatKey());
+    localStorage.removeItem(getCurrentChatIdKey());
+    // Navigate to home without chatId param to ensure fresh start
+    if (location.search.includes("chatId=")) {
+      window.history.replaceState({}, "", "/home?new=1");
     }
   };
 
@@ -82,16 +121,29 @@ export default function HomePage() {
     scrollToBottom();
   }, [messages]);
 
-  // Track previous user ID to detect user changes
+  // Track previous user ID to detect user changes and sign-in
   const prevUserIdRef = useRef(null);
+  const hasClearedOnSignInRef = useRef(false);
   
-  // Clear messages when user changes (different user logs in)
+  // Clear messages when user signs in (fresh sign-in, not just page refresh)
   useEffect(() => {
-    if (user?._id && prevUserIdRef.current !== null && prevUserIdRef.current !== user._id) {
-      // User has changed - clear messages
-      setMessages([]);
+    if (user?._id) {
+      // Check if this is a fresh sign-in (user wasn't loaded before)
+      if (prevUserIdRef.current === null) {
+        // Fresh sign-in - clear current chat and start new
+        setMessages([]);
+        localStorage.removeItem(getCurrentChatKey());
+        localStorage.removeItem(getCurrentChatIdKey());
+        hasClearedOnSignInRef.current = true;
+      } else if (prevUserIdRef.current !== user._id) {
+        // Different user logged in - clear messages
+        setMessages([]);
+        localStorage.removeItem(getCurrentChatKey());
+        localStorage.removeItem(getCurrentChatIdKey());
+        hasClearedOnSignInRef.current = true;
+      }
+      prevUserIdRef.current = user._id;
     }
-    prevUserIdRef.current = user?._id;
   }, [user?._id]);
 
   // Save messages to localStorage whenever they change
@@ -101,37 +153,45 @@ export default function HomePage() {
     }
   }, [messages, user?._id]);
 
-  // Clear messages when navigating with ?new=1
+  // Handle URL params for new chat or loading specific chat
   useEffect(() => {
-    if (!user?._id) return; // Wait for user to be loaded
-    
+    if (!user?._id) return;
+    // Save current chat before switching
+    try {
+      const currentChatId = localStorage.getItem(getCurrentChatIdKey());
+      if (currentChatId && messages.length > 0) {
+        const history = loadChatHistory();
+        const idx = history.findIndex(
+          (c) => c.id?.toString() === currentChatId.toString()
+        );
+        if (idx !== -1) {
+          history[idx].messages = messages;
+          saveChatHistory(history);
+        }
+      }
+    } catch {}
+
     const params = new URLSearchParams(location.search);
     if (params.get("new") === "1") {
       setMessages([]);
       localStorage.removeItem(getCurrentChatKey());
       localStorage.removeItem(getCurrentChatIdKey());
+      hasClearedOnSignInRef.current = false;
     } else {
       // Check if we should load a specific chat from history
       const chatId = params.get("chatId");
       if (chatId) {
-        loadChatFromHistory(parseInt(chatId));
-      } else {
-        // Try to load current chat if exists
-        try {
-          const currentChat = localStorage.getItem(getCurrentChatKey());
-          if (currentChat) {
-            setMessages(JSON.parse(currentChat));
-          }
-        } catch {
-          // Ignore errors
-        }
+        const chatIdNum = parseInt(chatId);
+        loadChatFromHistory(isNaN(chatIdNum) ? chatId : chatIdNum);
+      } else if (!hasClearedOnSignInRef.current) {
+        setMessages([]);
       }
     }
   }, [location.search, user?._id]);
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (inputValue.trim() === "") return;
+    if (inputValue.trim() === "" || isLoading) return;
 
     const messageText = inputValue.trim();
     const isNewChat = messages.length === 0;
@@ -150,6 +210,7 @@ export default function HomePage() {
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setInputValue("");
+    setIsLoading(true);
 
     // If this is a new chat, save it to history
     if (isNewChat) {
@@ -169,19 +230,41 @@ export default function HomePage() {
       saveChatHistory(history);
     }
 
-    // Simulate AI response after a short delay
-    setTimeout(() => {
+    try {
+      // Call the backend RAG endpoint
+      const response = await fetch("/api/v1/rag/ask", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ question: messageText }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.message || errorData.error || "Failed to get response from AI";
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      
+      if (!data.answer) {
+        throw new Error(data.message || data.error || "No answer received from AI");
+      }
+      
+      const aiAnswer = data.answer;
+
       const aiMessage = {
         id: Date.now() + 1,
-        text: language === 'ar' 
-          ? "شكراً على رسالتك! أنا هنا للمساعدة. كيف يمكنني خدمتك اليوم؟" 
-          : "Thank you for your message! I'm here to help. How can I assist you today?",
+        text: aiAnswer,
         sender: "ai",
         timestamp: new Date().toLocaleTimeString(language === 'ar' ? 'ar-SA' : 'en-US', { 
           hour: '2-digit', 
           minute: '2-digit' 
         })
       };
+
       const finalMessages = [...updatedMessages, aiMessage];
       setMessages(finalMessages);
 
@@ -206,7 +289,34 @@ export default function HomePage() {
           }
         }
       }
-    }, 1000);
+    } catch (error) {
+      console.error("Error getting AI response:", error);
+      
+      // Create a more helpful error message
+      let errorText = error.message || (language === 'ar' 
+        ? "عذراً، حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى." 
+        : "Sorry, there was an error connecting. Please try again.");
+      
+      // Check if it's a service unavailable error
+      if (error.message && error.message.includes("unavailable")) {
+        errorText = language === 'ar'
+          ? "خدمة الذكاء الاصطناعي غير متوفرة حالياً. يرجى التأكد من تشغيل خدمة Python RAG."
+          : "AI service is currently unavailable. Please ensure the Python RAG service is running on port 5001.";
+      }
+      
+      const errorMessage = {
+        id: Date.now() + 1,
+        text: errorText,
+        sender: "ai",
+        timestamp: new Date().toLocaleTimeString(language === 'ar' ? 'ar-SA' : 'en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        })
+      };
+      setMessages([...updatedMessages, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
 
@@ -247,6 +357,22 @@ export default function HomePage() {
                 </div>
               </div>
             ))}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="max-w-xl md:max-w-2xl lg:max-w-3xl rounded-2xl px-6 py-4 border-2 border-[#2AC0DA] bg-transparent text-white">
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-[#2AC0DA] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-2 h-2 bg-[#2AC0DA] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-2 h-2 bg-[#2AC0DA] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    </div>
+                    <span className="text-sm text-gray-400">
+                      {language === 'ar' ? 'جاري الكتابة...' : 'Typing...'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -261,11 +387,13 @@ export default function HomePage() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   placeholder={t.chatPlaceholder}
-                  className="flex-1 bg-transparent px-6 py-4 text-lg opacity-50 outline-none placeholder:opacity-50"
+                  disabled={isLoading}
+                  className="flex-1 bg-transparent px-6 py-4 text-lg opacity-50 outline-none placeholder:opacity-50 disabled:opacity-30"
                 />
                 <button
                   type="submit"
-                  className="px-6 hover:opacity-70 transition-opacity"
+                  disabled={isLoading}
+                  className="px-6 hover:opacity-70 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <svg 
                     className={`w-6 h-6 ${language === 'ar' ? 'transform rotate-45' : 'transform -rotate-45'}`}

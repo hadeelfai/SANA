@@ -1,6 +1,6 @@
 // Sidebar.jsx
 import { useState, useEffect } from "react";
-import {Link, useNavigate} from "react-router-dom"; // ADD THIS at the top
+import {Link, useNavigate, useLocation} from "react-router-dom"; // ADD THIS at the top
 
 import {
     Edit,
@@ -13,6 +13,7 @@ import {
     Menu,
     Search,
     X,
+    Trash2,
 } from "lucide-react";
 import { useLanguage } from "../contexts/LanguageContext";
 import { translations } from "../translations";
@@ -29,6 +30,7 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
     const t = translations[language];
     const { logout, user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
     // Get user-specific chat history key
     const getChatHistoryKey = () => {
@@ -142,11 +144,115 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
         }
     }, [searchQuery, chatHistory]);
 
+    // Helper to flush current chat before navigating
+    const flushCurrentChat = () => {
+        try {
+            const getCurrentChatKey = () => {
+                return user?._id ? `sana_current_chat_${user._id}` : "sana_current_chat";
+            };
+            const getCurrentChatIdKey = () => {
+                return user?._id ? `sana_current_chat_id_${user._id}` : "sana_current_chat_id";
+            };
+            const getChatHistoryKey = () => {
+                return user?._id ? `sana_chat_history_${user._id}` : "sana_chat_history";
+            };
+            const history = JSON.parse(localStorage.getItem(getChatHistoryKey()) || '[]');
+            const curMsg = JSON.parse(localStorage.getItem(getCurrentChatKey()) || '[]');
+            const curId = localStorage.getItem(getCurrentChatIdKey());
+            if (curId && curMsg?.length > 0) {
+                const idx = history.findIndex(c => c.id?.toString() === curId.toString());
+                if (idx !== -1) {
+                    history[idx].messages = curMsg;
+                    localStorage.setItem(getChatHistoryKey(), JSON.stringify(history));
+                }
+            }
+        } catch {}
+    };
+
     // Load a chat from history
     const loadChat = (chatId) => {
+        flushCurrentChat();
         navigate(`/home?chatId=${chatId}`);
         setSearchOpen(false);
         setSearchQuery("");
+    };
+
+    // Get currently active chat ID from URL or localStorage
+    const getCurrentChatId = () => {
+        const params = new URLSearchParams(location.search);
+        const chatIdFromUrl = params.get("chatId");
+        if (chatIdFromUrl) return chatIdFromUrl;
+        
+        // Fallback to localStorage
+        const getCurrentChatIdKey = () => {
+            return user?._id ? `sana_current_chat_id_${user._id}` : "sana_current_chat_id";
+        };
+        return localStorage.getItem(getCurrentChatIdKey());
+    };
+
+    // Check if a chat is currently active/selected
+    const isChatActive = (chatId) => {
+        const currentChatId = getCurrentChatId();
+        if (!currentChatId || !chatId) return false;
+        
+        const chatIdStr = chatId?.toString();
+        const chatIdNum = typeof chatId === 'string' ? parseInt(chatId) : chatId;
+        const currentStr = currentChatId.toString();
+        const currentNum = parseInt(currentChatId);
+        
+        return chatId === currentChatId || 
+               chatId === currentNum || 
+               chatIdStr === currentStr || 
+               chatIdNum === currentNum;
+    };
+
+    // Delete a specific chat from history
+    const handleDeleteChat = (e, chatId) => {
+        e.stopPropagation(); // Prevent loading the chat when clicking delete
+        
+        if (!confirm(language === 'ar' 
+            ? 'هل أنت متأكد من حذف هذه المحادثة؟' 
+            : 'Are you sure you want to delete this chat?')) {
+            return;
+        }
+
+        const history = loadChatHistory();
+        const updatedHistory = history.filter((chat) => {
+            const cIdStr = chat.id?.toString();
+            const cIdNum = typeof chat.id === 'string' ? parseInt(chat.id) : chat.id;
+            const targetIdStr = chatId?.toString();
+            const targetIdNum = typeof chatId === 'string' ? parseInt(chatId) : chatId;
+            
+            return !(chat.id === chatId || chat.id === targetIdNum || cIdStr === targetIdStr || cIdNum === targetIdNum);
+        });
+
+        const key = getChatHistoryKey();
+        localStorage.setItem(key, JSON.stringify(updatedHistory));
+        setChatHistory(updatedHistory);
+        
+        if (!searchQuery.trim()) {
+            setFilteredHistory(updatedHistory);
+        } else {
+            // Re-filter with search query
+            const query = searchQuery.toLowerCase().trim();
+            const filtered = updatedHistory.filter((chat) => {
+                if (chat.title?.toLowerCase().includes(query)) return true;
+                if (chat.messages) {
+                    return chat.messages.some((msg) =>
+                        msg.text?.toLowerCase().includes(query)
+                    );
+                }
+                return false;
+            });
+            setFilteredHistory(filtered);
+        }
+
+        // If deleted chat was the current one, navigate to new chat
+        const params = new URLSearchParams(window.location.search);
+        const currentChatId = params.get("chatId");
+        if (currentChatId && (currentChatId === chatId?.toString() || parseInt(currentChatId) === chatId)) {
+            navigate("/home?new=1");
+        }
     };
 
 
@@ -214,12 +320,13 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
 
                     {/* New Chat */}
                     <button
-                        onClick={() => navigate("/home?new=1")}
+                        onClick={() => { flushCurrentChat(); navigate(`/home?new=1&ts=${Date.now()}`)}}
                         className="flex items-center gap-4 hover:bg-[#272727] rounded-lg transition px-3 py-2"
                     >
                         <Edit className="w-5 h-5" />
                         {menuOpen && <span className="text-white opacity-50 text-lg">{t.newChat}</span>}
                     </button>
+
 
 
                     {/* Tickets */}
@@ -330,21 +437,37 @@ export default function Sidebar({ menuOpen, setMenuOpen }) {
                                         }
                                     </div>
                                 ) : (
-                                    filteredHistory.map((chat, index) => (
-                                        <button
-                                            key={chat.id || index}
-                                            onClick={() => loadChat(chat.id)}
-                                            className={`w-full text-left px-3 py-2 hover:bg-[#272727] rounded-lg text-sm font-thin text-white opacity-50 transition ${
-                                                index === 0 && !searchQuery.trim()
-                                                    ? 'border border-teal-400 p-[2px] bg-gradient-to-r from-[#2AC0DA] via-[#CEE9E8] to-[#48A07D] rounded-lg'
-                                                    : ''
-                                            }`}
-                                        >
-                                            <div className={index === 0 && !searchQuery.trim() ? 'px-3 py-2 bg-[#343434] hover:bg-[#272727] rounded-lg' : ''}>
-                                                {chat.title || (language === 'ar' ? 'محادثة جديدة' : 'New Chat')}
+                                    filteredHistory.map((chat, index) => {
+                                        const isActive = isChatActive(chat.id);
+                                        return (
+                                            <div
+                                                key={chat.id || index}
+                                                className={`w-full flex items-center group ${
+                                                    isActive
+                                                        ? 'p-[2px] bg-gradient-to-r from-[#2AC0DA] via-[#CEE9E8] to-[#48A07D] rounded-lg'
+                                                        : ''
+                                                }`}
+                                            >
+                                                <button
+                                                    onClick={() => loadChat(chat.id)}
+                                                    className={`flex-1 text-left px-3 py-2 hover:bg-[#272727] rounded-lg text-sm font-thin text-white opacity-50 transition ${
+                                                        isActive ? 'bg-[#343434] hover:bg-[#272727] rounded-lg' : ''
+                                                    }`}
+                                                >
+                                                    {chat.title || (language === 'ar' ? 'محادثة جديدة' : 'New Chat')}
+                                                </button>
+                                                <button
+                                                    onClick={(e) => handleDeleteChat(e, chat.id)}
+                                                    className={`opacity-0 group-hover:opacity-100 transition px-2 py-2 hover:bg-red-600/20 rounded-lg text-red-400 hover:text-red-300 ${
+                                                        isActive ? 'mr-1' : ''
+                                                    }`}
+                                                    title={language === 'ar' ? 'حذف المحادثة' : 'Delete chat'}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
                                             </div>
-                                        </button>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </div>
                         </div>

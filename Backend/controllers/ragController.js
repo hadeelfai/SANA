@@ -12,18 +12,57 @@ export const askRag = async (req, res) => {
       });
     }
 
+    console.log(`[RAG] Calling service at ${RAG_SERVICE_URL}/rag/ask with question:`, question);
+
     const response = await axios.post(`${RAG_SERVICE_URL}/rag/ask`, {
       question,
+    }, {
+      timeout: 30000, // 30 second timeout
     });
+
+    console.log(`[RAG] Service response:`, response.data);
+
+    if (!response.data || !response.data.answer) {
+      console.error("[RAG] Invalid response format:", response.data);
+      return res.status(500).json({
+        error: "Invalid response from RAG service",
+        details: "Response missing answer field"
+    });
+    }
 
     return res.json({
       answer: response.data.answer,
     });
 
   } catch (error) {
-    console.error("RAG Error:", error.message);
+    console.error("[RAG Error] Full error:", error);
+    
+    // Handle different error types
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      console.error(`[RAG] Cannot connect to service at ${RAG_SERVICE_URL}`);
+      return res.status(503).json({
+        error: "RAG service unavailable",
+        message: "The AI service is not running or not reachable. Please check if the Python RAG service is running on port 5001.",
+        details: error.message
+      });
+    }
+
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error("[RAG] Service error response:", error.response.status, error.response.data);
+      return res.status(error.response.status || 500).json({
+        error: "RAG service error",
+        message: error.response.data?.error || error.response.data?.message || "Error from RAG service",
+        details: error.response.data
+      });
+    }
+
+    // Other errors (network, timeout, etc.)
     return res.status(500).json({
       error: "RAG service error",
+      message: error.message || "Unknown error occurred",
+      details: error.code || "No additional details"
     });
   }
 };
