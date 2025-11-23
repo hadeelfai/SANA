@@ -400,34 +400,62 @@ WELCOME_EN = (
 )
 
 def detect_smalltalk(q: str) -> str | None:
-    """Detect greeting / thanks / who-are-you / help intents."""
     ql = (q or "").strip().lower()
 
-    if any(x in ql for x in ["مرحبا", "هلا", "السلام عليكم", "صباح الخير", "مساء الخير",
-                             "hi", "hello", "hey", "good morning", "good evening"]):
+    # تحيات
+    if any(x in ql for x in [
+        "مرحبا", "هلا", "السلام عليكم", "صباح الخير", "مساء الخير",
+        "hi", "hello", "hey", "good morning", "good evening"
+    ]):
         return "greet"
+
+    # شكر
     if any(x in ql for x in ["شكرا", "ثانكس", "مشكور", "thanks", "thank you", "thx"]):
         return "thanks"
-    if any(x in ql for x in ["من انت", "وش تسوي", "وش دورك", "who are you", "what can you do"]):
+
+    # من أنت؟ مين أنت؟ من أنا؟ مين أنا؟
+    if any(x in ql for x in [
+        "من انت", "مين انت", "وش تسوي", "وش دورك",
+        "من انا", "مين انا",
+        "who are you", "what can you do", "who am i"
+    ]):
         return "who"
+
+    # طلب مساعدة
     if any(x in ql for x in ["ساعدني", "مساعدة", "كيف أستخدم", "help", "how to use"]):
         return "help"
+
     return None
 
+
 def smalltalk_reply(intent: str, lang: str) -> str:
-    """Return canned reply for smalltalk."""
     if intent == "greet":
         return WELCOME_AR if lang == "ar" else WELCOME_EN
+
     if intent == "thanks":
         return "العفو 🙏، كيف أقدر أساعدك بعد؟" if lang == "ar" else "You're welcome 🙏. How else can I help?"
-    if intent in ("who", "help"):
+
+    if intent == "who":
+        if lang == "ar":
+            return (
+                "أنا مساعد الموارد البشرية.\n"
+                "أقدر أجاوبك على سياسات الشركة ورصيد الإجازات وبيانات الموظفين.\n"
+                "اكتب لي رقم الموظف أو اسمه أو إيميله، وأنا أجيب لك كل التفاصيل."
+            )
+        else:
+            return (
+                "I'm the HR assistant.\n"
+                "I can answer company policies, leave balance, and employee information.\n"
+                "Give me an employee ID, name, or email and I'll show you the details."
+            )
+
+    if intent == "help":
         return (
-            "أنا مساعد HR: أجاوب السياسات وأستخرج بيانات الموظفين (بريد، قسم، رصيد...). "
-            "اكتب رقم الموظف أو البريد أو الاسم. مثال: «اعطني معلومات الموظف 1001»."
+            "اكتب رقم الموظف أو اسمه أو اسأل عن سياسة: مثل الإجازات، بدل السكن، إنهاء الخدمة."
         ) if lang == "ar" else (
-            "I'm the HR assistant: I answer policies and fetch employee data (email, department, leave...). "
-            "Provide employee ID/email/name. Example: “Show info for employee 1001”."
+            "Ask about any policy or provide an employee ID/name/email for details."
         )
+
     return WELCOME_AR if lang == "ar" else WELCOME_EN
 
 def translate_ar_to_en(text: str) -> str:
