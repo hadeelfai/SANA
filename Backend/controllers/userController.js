@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 // Create a new ticket
 export const createTicket = async (req, res) => {
   try {
-    const { title, description, priority, category, subcategory } =
+    const { title, description, priority, category, subcategory, solvedWithSana, sanaRecommendation } =
       req.body;
     const userId = req.user._id; // Assuming you have a user object set by the auth middleware
 
@@ -15,12 +15,18 @@ export const createTicket = async (req, res) => {
       category,
       subcategory,
       createdBy: userId,
+      solvedWithSana: solvedWithSana || false,
+      sanaRecommendation: sanaRecommendation || "",
+      // If solved with SANA, set status to resolved
+      status: solvedWithSana ? "resolved" : "new",
     });
 
     await newTicket.save();
     res.status(201).json({
       success: true,
-      message: "Ticket created successfully",
+      message: solvedWithSana 
+        ? "Ticket resolved successfully using SANA" 
+        : "Ticket created successfully",
       ticket: newTicket,
     });
   } catch (err) {

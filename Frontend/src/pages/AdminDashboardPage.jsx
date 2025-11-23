@@ -1,3 +1,7 @@
+// =======================================================
+// ADMIN DASHBOARD PAGE (with KPIs + SLA + Charts)
+// =======================================================
+
 import React, { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import { useLanguage } from "../contexts/LanguageContext.jsx";
@@ -5,13 +9,50 @@ import { translations } from "../translations.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { Link } from "react-router-dom";
 
-const STATUS_ORDER = ["new", "in_progress", "assigned", "resolved", "not_resolved"];
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  ComposedChart,
+} from "recharts";
 
-function StatusCard({ title, count, accent }) {
+const STATUS_ORDER = ["new", "in_progress", "assigned", "resolved", "not_resolved"];
+const GRADIENT = "linear-gradient(to right, #38d7f7, #8ad0b4)";
+const CHANNEL_COLORS = ["#38d7f7", "#22c55e"];
+
+// Priority-based SLA targets (Option B)
+const PRIORITY_SLA_HOURS = {
+  low: 72,      // 3 days
+  medium: 48,   // 2 days
+  high: 24,     // 1 day
+  critical: 8,  // 8 hours
+};
+
+function StatusCard({ title, count }) {
   return (
-    <div className="bg-[#343434] rounded-xl p-5 flex flex-col gap-3">
-      <span className="text-sm opacity-60">{title}</span>
-      <span className={`text-3xl font-semibold ${accent}`}>{count}</span>
+    <div className="bg-[#343434] rounded-xl p-6 flex flex-col items-center justify-center gap-2 shadow-lg min-h-[140px]">
+      <span className="text-sm opacity-70 text-center">{title}</span>
+      <span
+        className="text-5xl font-bold text-white"
+        style={{
+          background: GRADIENT,
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+        }}
+      >
+        {count}
+      </span>
     </div>
   );
 }
@@ -48,17 +89,24 @@ export default function AdminDashboardPage() {
   const [modalType, setModalType] = useState("status"); // "status" or "assign"
   const isRTL = language === "ar";
   const [editingUser, setEditingUser] = useState(null);
-  const [editForm, setEditForm] = useState({ employeeId: '', name: '', email: '', department: '', position: '', location: '' });
+  const [editForm, setEditForm] = useState({
+    employeeId: "",
+    name: "",
+    email: "",
+    department: "",
+    position: "",
+    location: "",
+  });
 
-  function openEditModal(user) {
-    setEditingUser(user);
+  function openEditModal(userToEdit) {
+    setEditingUser(userToEdit);
     setEditForm({
-      employeeId: user.employeeId || '',
-      name: user.name || '',
-      email: user.email || '',
-      department: user.department || '',
-      position: user.position || '',
-      location: user.location || ''
+      employeeId: userToEdit.employeeId || "",
+      name: userToEdit.name || "",
+      email: userToEdit.email || "",
+      department: userToEdit.department || "",
+      position: userToEdit.position || "",
+      location: userToEdit.location || "",
     });
   }
   function closeEditModal() {
@@ -68,9 +116,9 @@ export default function AdminDashboardPage() {
     e.preventDefault();
     try {
       const res = await fetch(`/api/v1/admin/dashboard/update-user/${editingUser._id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(editForm),
       });
       if (res.ok) {
@@ -98,33 +146,25 @@ export default function AdminDashboardPage() {
       const ticketsData = await ticketsRes.json();
       const usersData = await usersRes.json();
       const adminsData = await adminsRes.json();
-      
-      if (!ticketsRes.ok) {
-        console.error("Tickets error:", ticketsData);
-      }
-      if (!usersRes.ok) {
-        console.error("Users error:", usersData);
-      }
-      if (!adminsRes.ok) {
-        console.error("Admins error:", adminsData);
-      }
-      
-      if (ticketsData.success) {
-        setTickets(ticketsData.tickets || []);
-      } else {
+
+      if (!ticketsRes.ok) console.error("Tickets error:", ticketsData);
+      if (!usersRes.ok) console.error("Users error:", usersData);
+      if (!adminsRes.ok) console.error("Admins error:", adminsData);
+
+      if (ticketsData.success) setTickets(ticketsData.tickets || []);
+      else {
         console.error("Failed to load tickets:", ticketsData.message);
         setTickets([]);
       }
-      
-      if (usersData.success) {
-        setUsers(usersData.users || []);
-      } else {
+
+      if (usersData.success) setUsers(usersData.users || []);
+      else {
         console.error("Failed to load users:", usersData.message);
         setUsers([]);
       }
-      if (adminsData.success) {
-        setAdmins(adminsData.admins || []);
-      } else {
+
+      if (adminsData.success) setAdmins(adminsData.admins || []);
+      else {
         console.error("Failed to load admins:", adminsData.message);
         setAdmins([]);
       }
@@ -175,7 +215,13 @@ export default function AdminDashboardPage() {
   }
 
   async function handleDeleteTicket(ticketId) {
-    if (!confirm(language === "ar" ? "هل أنت متأكد من حذف هذه التذكرة؟" : "Are you sure you want to delete this ticket?")) {
+    if (
+      !confirm(
+        language === "ar"
+          ? "هل أنت متأكد من حذف هذه التذكرة؟"
+          : "Are you sure you want to delete this ticket?"
+      )
+    ) {
       return;
     }
     try {
@@ -192,7 +238,13 @@ export default function AdminDashboardPage() {
   }
 
   async function handleDeleteUser(userId) {
-    if (!confirm(language === "ar" ? "هل أنت متأكد من حذف هذا المستخدم؟" : "Are you sure you want to delete this user?")) {
+    if (
+      !confirm(
+        language === "ar"
+          ? "هل أنت متأكد من حذف هذا المستخدم؟"
+          : "Are you sure you want to delete this user?"
+      )
+    ) {
       return;
     }
     try {
@@ -208,16 +260,115 @@ export default function AdminDashboardPage() {
     }
   }
 
-  // Calculate statistics from tickets
+  // =====================================================
+  // DASHBOARD STATS + SLA LOGIC (Priority-based targets)
+  // =====================================================
   const stats = useMemo(() => {
     const total = tickets.length;
-    const statusCounts = STATUS_ORDER.reduce((acc, status) => ({ ...acc, [status]: 0 }), {});
+
+    const statusCounts = STATUS_ORDER.reduce((acc, s) => ({ ...acc, [s]: 0 }), {});
+
+    const trendMap = {};
+    const painPointMap = {};
+    const channelMixCounts = { selfService: 0, assisted: 0 };
+
+    const now = Date.now();
+    let slaEligible = 0;
+    let slaBreached = 0;
+
     tickets.forEach((ticket) => {
-      const key = ticket.status;
-      if (statusCounts[key] !== undefined) statusCounts[key] += 1;
+      const status = ticket.status || "new";
+      if (statusCounts[status] !== undefined) statusCounts[status] += 1;
+
+      const createdAt = ticket.createdAt ? new Date(ticket.createdAt) : null;
+      const resolvedAt = ticket.resolvedAt ? new Date(ticket.resolvedAt) : null;
+
+      // Trend: created vs resolved per day
+      if (createdAt && !isNaN(createdAt)) {
+        const day = createdAt.toISOString().slice(0, 10);
+        if (!trendMap[day]) trendMap[day] = { created: 0, resolved: 0 };
+        trendMap[day].created++;
+      }
+      if (resolvedAt && !isNaN(resolvedAt)) {
+        const day = resolvedAt.toISOString().slice(0, 10);
+        if (!trendMap[day]) trendMap[day] = { created: 0, resolved: 0 };
+        trendMap[day].resolved++;
+      }
+
+      // Pain points by category
+      const painKey = ticket.category || "Other";
+      painPointMap[painKey] = (painPointMap[painKey] || 0) + 1;
+
+      // Channel mix
+      if (ticket.channel === "self_service") {
+        channelMixCounts.selfService++;
+      } else {
+        channelMixCounts.assisted++;
+      }
+
+      // SLA breach check (priority-based)
+      const priority = (ticket.priority || "low").toLowerCase();
+      const slaHours = PRIORITY_SLA_HOURS[priority];
+      if (createdAt && slaHours) {
+        slaEligible++;
+        const endTime =
+          resolvedAt && !isNaN(resolvedAt)
+            ? resolvedAt.getTime()
+            : now;
+        const ageHours = (endTime - createdAt.getTime()) / (1000 * 60 * 60);
+        if (ageHours > slaHours) slaBreached++;
+      }
     });
-    return { total, statusCounts };
-  }, [tickets]);
+
+    const openCount = total - (statusCounts.resolved || 0);
+
+    // Trend data
+    const trendData = Object.entries(trendMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, vals]) => ({
+        date,
+        created: vals.created,
+        resolved: vals.resolved,
+      }));
+
+    // Pain data (Pareto)
+    const painEntries = Object.entries(painPointMap).sort((a, b) => b[1] - a[1]);
+    const totalPain = painEntries.reduce((s, [, c]) => s + c, 0);
+    let cumulative = 0;
+    const painData = painEntries.slice(0, 10).map(([name, count]) => {
+      cumulative += count;
+      return {
+        name,
+        count,
+        cumulativePct: totalPain ? +((cumulative / totalPain) * 100).toFixed(1) : 0,
+      };
+    });
+
+    const channelMixData = [
+      {
+        name: language === "ar" ? "الخدمة الذاتية" : "Self-Service",
+        value: channelMixCounts.selfService,
+      },
+      {
+        name: language === "ar" ? "الدعم المباشر" : "Assisted",
+        value: channelMixCounts.assisted,
+      },
+    ];
+
+    const slaBreachPct = slaEligible
+      ? Math.round((slaBreached / slaEligible) * 100)
+      : 0;
+
+    return {
+      total,
+      statusCounts,
+      openCount,
+      trendData,
+      painData,
+      channelMixData,
+      slaBreachPct,
+    };
+  }, [tickets, language]);
 
   if (user?.role !== "admin") {
     return (
@@ -256,87 +407,235 @@ export default function AdminDashboardPage() {
               </div>
             ) : (
               <>
+                {/* ========= KPI CARDS (Open, Self-Service %, SLA Breach %, Total) ========= */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <StatusCard title={t.totalTickets} count={stats.total} accent="text-[#2AC0DA]" />
-                  <StatusCard title={t.openTickets} count={stats.statusCounts.new || 0} accent="text-emerald-400" />
-                  <StatusCard title={t.inProgressTickets} count={stats.statusCounts.in_progress || 0} accent="text-yellow-300" />
-                  <StatusCard title={t.resolvedTickets} count={stats.statusCounts.resolved || 0} accent="text-blue-300" />
+                  <StatusCard
+                    title={language === "ar" ? "التذاكر المفتوحة" : "Open Tickets"}
+                    count={stats.openCount}
+                  />
+
+                  <StatusCard
+                    title={language === "ar" ? "نسبة الخدمة الذاتية" : "Self-Service %"}
+                    count={(() => {
+                      const totalChannels =
+                        (stats.channelMixData?.[0]?.value || 0) +
+                        (stats.channelMixData?.[1]?.value || 0);
+                      if (!totalChannels) return "0%";
+                      const pct = Math.round(
+                        (stats.channelMixData[0].value / totalChannels) * 100
+                      );
+                      return `${pct}%`;
+                    })()}
+                  />
+
+                  <StatusCard
+                    title={
+                      language === "ar"
+                        ? "نسبة اختراق اتفاقية مستوى الخدمة"
+                        : "SLA Breach %"
+                    }
+                    count={`${stats.slaBreachPct}%`}
+                  />
+
+                  <StatusCard
+                    title={language === "ar" ? "إجمالي التذاكر" : "Total Tickets"}
+                    count={stats.total}
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div className="bg-[#343434] rounded-xl p-5 space-y-4">
-                    <h2 className="text-xl font-semibold">{t.latestTickets}</h2>
-                    {tickets.length === 0 ? (
-                      <div className="opacity-70">
-                        {language === "ar" ? "لا توجد تذاكر حتى الآن" : "No tickets yet"}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {tickets
-                          .slice()
-                          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-                          .slice(0, 5)
-                          .map((ticket) => (
-                            <Link
-                              key={ticket._id}
-                              to={`/tickets/${ticket._id}`}
-                              className="block bg-[#2C2C2C] rounded-lg p-4 hover:bg-[#2f2f2f] transition"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <div className={`font-semibold ${isRTL ? "text-right" : "text-left"}`}>
-                                  {ticket.title}
-                                </div>
-                                <span className="text-xs opacity-60">
-                                  {new Date(ticket.createdAt).toLocaleDateString(
-                                    language === "ar" ? "ar-SA" : "en-US"
-                                  )}
-                                </span>
-                              </div>
-                              <div className="text-sm opacity-70 mt-1">
-                                {ticket.category} • {t[`status_${ticket.status}`] || ticket.status}
-                              </div>
-                            </Link>
-                          ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="bg-[#343434] rounded-xl p-5 space-y-4">
+                {/* ================= TREND + CHANNEL MIX ================= */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                  {/* Ticket Creation vs Resolution Trend */}
+                  <div className="bg-[#343434] rounded-xl p-5 space-y-4 xl:col-span-2">
                     <h2 className="text-xl font-semibold">
-                      {language === "ar" ? "تفاصيل الحالة" : "Status Breakdown"}
+                      {language === "ar"
+                        ? "اتجاه إنشاء وحل التذاكر"
+                        : "Ticket Creation vs Resolution Trend"}
                     </h2>
-                    <div className="space-y-3">
-                      {STATUS_ORDER.map((statusKey) => (
-                        <div key={statusKey} className="flex items-center justify-between gap-3">
-                          <span className="opacity-70">
-                            {t[`status_${statusKey}`] || statusKey}
-                          </span>
-                          <div className="flex-1 mx-4 h-2 bg-[#2C2C2C] rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-[#2AC0DA] via-[#CEE9E8] to-[#48A07D]"
-                              style={{
-                                width:
-                                  stats.total === 0
-                                    ? "0%"
-                                    : `${Math.round(
-                                        (stats.statusCounts[statusKey] / stats.total) * 100
-                                      )}%`,
-                              }}
-                            />
-                          </div>
-                          <span className="font-semibold">
-                            {stats.statusCounts[statusKey] || 0}
-                          </span>
-                        </div>
-                      ))}
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={stats.trendData}>
+                          <CartesianGrid stroke="#444444" strokeDasharray="3 3" />
+                          <XAxis dataKey="date" stroke="#d1d5db" />
+                          <YAxis
+                            stroke="#d1d5db"
+                            label={{
+                              value:
+                                language === "ar" ? "عدد التذاكر" : "Number of Tickets",
+                              angle: -90,
+                              position: "insideLeft",
+                              offset: 10,
+                              style: { fill: "#d1d5db", fontSize: 14, fontWeight: 500 },
+                            }}
+                          />
+                          <Tooltip contentStyle={{ background: "#111827", border: "none" }} />
+                          <Legend />
+                          <Line
+                            type="monotone"
+                            dataKey="created"
+                            stroke="#38bdf8"
+                            strokeWidth={2}
+                            dot={false}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="resolved"
+                            stroke="#22c55e"
+                            strokeWidth={2}
+                            dot={false}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
                     </div>
                   </div>
+
+                  {/* Support Channel Distribution */}
+                  <div className="bg-[#343434] rounded-xl p-5 space-y-4">
+                    <h2 className="text-xl font-semibold">
+                      {language === "ar"
+                        ? "توزيع قنوات الدعم"
+                        : "Support Channel Distribution"}
+                    </h2>
+                    <div className="h-56">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={stats.channelMixData}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius="55%"
+                            outerRadius="85%"
+                          >
+                            {stats.channelMixData.map((_, idx) => (
+                              <Cell
+                                key={idx}
+                                fill={CHANNEL_COLORS[idx % CHANNEL_COLORS.length]}
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={{ background: "#111827", border: "none" }} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ================= MOST COMMON ISSUE CATEGORIES (Pareto) ================= */}
+                <div className="bg-[#343434] rounded-xl p-5 space-y-4">
+                  <h2 className="text-xl font-semibold">
+                    {language === "ar"
+                      ? "الفئات الأكثر شيوعًا"
+                      : "Most Common Issue Categories"}
+                  </h2>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={stats.painData}>
+                        <CartesianGrid stroke="#444444" strokeDasharray="3 3" />
+                        <XAxis dataKey="name" stroke="#d1d5db" />
+                        <YAxis
+                          stroke="#d1d5db"
+                          label={{
+                            value: language === "ar" ? "العدد" : "Count",
+                            angle: -90,
+                            position: "insideLeft",
+                            offset: 10,
+                            style: { fill: "#d1d5db", fontSize: 14, fontWeight: 500 },
+                          }}
+                        />
+                        <Tooltip contentStyle={{ background: "#111827", border: "none" }} />
+                        <Legend />
+                        <Bar dataKey="count" fill="#38bdf8" />
+                        <Line
+                          type="monotone"
+                          dataKey="cumulativePct"
+                          stroke="#22c55e"
+                          strokeWidth={2}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* ========== Latest Tickets + Status Breakdown (existing admin blocks) ========== */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+<div className="bg-[#343434] rounded-xl p-5 flex flex-col h-64">
+  <h2 className="text-xl font-semibold mb-3 sticky top-0 bg-[#343434]">
+    {t.latestTickets}
+  </h2>
+
+  <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+    {tickets
+      .slice()
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 20)
+      .map((ticket) => (
+        <Link
+          key={ticket._id}
+          to={`/tickets/${ticket._id}`}
+          className="block bg-[#2C2C2C] rounded-lg p-4 hover:bg-[#2f2f2f] transition"
+        >
+          <div className="flex items-center justify-between">
+            <div className={`font-semibold ${isRTL ? "text-right" : "text-left"}`}>
+              {ticket.title}
+            </div>
+            <span className="text-xs opacity-60">
+              {new Date(ticket.createdAt).toLocaleDateString(
+                language === "ar" ? "ar-SA" : "en-US"
+              )}
+            </span>
+          </div>
+
+          <div className="text-sm opacity-70 mt-1">
+            {ticket.category} • {t[`status_${ticket.status}`]}
+          </div>
+        </Link>
+      ))}
+  </div>
+</div>
+
+<div className="bg-[#343434] rounded-xl p-5 flex flex-col h-64">
+  <h2 className="text-xl font-semibold mb-4">
+    {language === "ar" ? "تفاصيل الحالة" : "Status Breakdown"}
+  </h2>
+
+  {/* EVENLY SPACED STATUS ROWS */}
+  <div className="flex-1 flex flex-col justify-between">
+    {STATUS_ORDER.map((statusKey) => (
+      <div key={statusKey} className="flex items-center justify-between gap-3">
+        <span className="opacity-70 text-sm min-w-[100px]">
+          {t[`status_${statusKey}`] || statusKey}
+        </span>
+
+        <div className="flex-1 mx-3 h-2 bg-[#2C2C2C] rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-[#2AC0DA] via-[#CEE9E8] to-[#48A07D]"
+            style={{
+              width:
+                stats.total === 0
+                  ? "0%"
+                  : `${Math.round(
+                      (stats.statusCounts[statusKey] / stats.total) * 100
+                    )}%`,
+            }}
+          />
+        </div>
+
+        <span className="font-semibold text-sm min-w-[20px] text-right">
+          {stats.statusCounts[statusKey] || 0}
+        </span>
+      </div>
+    ))}
+  </div>
+</div>
+
+
                 </div>
               </>
             )}
 
             {/* Tabs */}
-            <div className="flex gap-4 border-b border-[#404040]">
+            <div className="flex gap-4 border-b border-[#404040] mt-4">
               <button
                 onClick={() => setActiveTab("tickets")}
                 className={`px-4 py-2 border-b-2 transition ${
@@ -370,26 +669,50 @@ export default function AdminDashboardPage() {
                   <table className="w-full">
                     <thead className="bg-[#2C2C2C]">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">{t.ticketId}</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">{t.title}</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">{t.category}</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">{t.status_new}</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">{t.priority}</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">{t.createdBy}</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">{t.assignedTo}</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">{t.actions}</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">
+                          {t.ticketId}
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">
+                          {t.title}
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">
+                          {t.category}
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">
+                          {t.status_new}
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">
+                          {t.priority}
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">
+                          {t.createdBy}
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">
+                          {t.assignedTo}
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">
+                          {t.actions}
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {tickets.length === 0 ? (
                         <tr>
-                          <td colSpan="8" className="px-4 py-8 text-center opacity-60">
-                            {language === "ar" ? "لا توجد تذاكر" : "No tickets found"}
+                          <td
+                            colSpan="8"
+                            className="px-4 py-8 text-center opacity-60"
+                          >
+                            {language === "ar"
+                              ? "لا توجد تذاكر"
+                              : "No tickets found"}
                           </td>
                         </tr>
                       ) : (
                         tickets.map((ticket) => (
-                          <tr key={ticket._id} className="border-t border-[#404040] hover:bg-[#2C2C2C]">
+                          <tr
+                            key={ticket._id}
+                            className="border-t border-[#404040] hover:bg-[#2C2C2C]"
+                          >
                             <td className="px-4 py-3">
                               <Link
                                 to={`/tickets/${ticket._id}`}
@@ -406,16 +729,28 @@ export default function AdminDashboardPage() {
                                 {ticket.title}
                               </Link>
                             </td>
-                            <td className="px-4 py-3 text-sm">{ticket.category}</td>
+                            <td className="px-4 py-3 text-sm">
+                              {ticket.category}
+                            </td>
                             <td className="px-4 py-3">
-                              <StatusPill status={ticket.status} t={t} language={language} />
+                              <StatusPill
+                                status={ticket.status}
+                                t={t}
+                                language={language}
+                              />
                             </td>
-                            <td className="px-4 py-3 text-sm capitalize">{ticket.priority}</td>
-                            <td className="px-4 py-3 text-sm">
-                              {ticket.createdBy?.name || ticket.createdBy?.email || "-"}
+                            <td className="px-4 py-3 text-sm capitalize">
+                              {ticket.priority}
                             </td>
                             <td className="px-4 py-3 text-sm">
-                              {ticket.assignedTo?.name || ticket.assignedTo?.email || "-"}
+                              {ticket.createdBy?.name ||
+                                ticket.createdBy?.email ||
+                                "-"}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              {ticket.assignedTo?.name ||
+                                ticket.assignedTo?.email ||
+                                "-"}
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex gap-2">
@@ -461,32 +796,65 @@ export default function AdminDashboardPage() {
                   <table className="w-full">
                     <thead className="bg-[#2C2C2C]">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">{t.employeeId}</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">{language === "ar" ? "الاسم" : "Name"}</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">{t.email}</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">{t.department}</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">{t.position}</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold">{t.actions}</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">
+                          {t.employeeId}
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">
+                          {language === "ar" ? "الاسم" : "Name"}
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">
+                          {t.email}
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">
+                          {t.department}
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">
+                          {t.position}
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">
+                          {t.actions}
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {users.length === 0 ? (
                         <tr>
-                          <td colSpan="6" className="px-4 py-8 text-center opacity-60">
-                            {language === "ar" ? "لا يوجد مستخدمون" : "No users found"}
+                          <td
+                            colSpan="6"
+                            className="px-4 py-8 text-center opacity-60"
+                          >
+                            {language === "ar"
+                              ? "لا يوجد مستخدمون"
+                              : "No users found"}
                           </td>
                         </tr>
                       ) : (
                         users.map((u) => (
-                          <tr key={u._id} className="border-t border-[#404040] hover:bg-[#2C2C2C]">
-                            <td className="px-4 py-3 text-sm">{u.employeeId || "-"}</td>
+                          <tr
+                            key={u._id}
+                            className="border-t border-[#404040] hover:bg-[#2C2C2C]"
+                          >
+                            <td className="px-4 py-3 text-sm">
+                              {u.employeeId || "-"}
+                            </td>
                             <td className="px-4 py-3">{u.name}</td>
-                            <td className="px-4 py-3 text-sm opacity-80">{u.email}</td>
-                            <td className="px-4 py-3 text-sm">{u.department || u.team || "-"}</td>
-                            <td className="px-4 py-3 text-sm">{u.position || "-"}</td>
+                            <td className="px-4 py-3 text-sm opacity-80">
+                              {u.email}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              {u.department || u.team || "-"}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              {u.position || "-"}
+                            </td>
                             <td className="px-4 py-3">
                               <div className="flex gap-2">
-                                <button onClick={() => openEditModal(u)} className="text-xs px-3 py-1 bg-[#2AC0DA] rounded hover:opacity-80 transition">{t.edit}</button>
+                                <button
+                                  onClick={() => openEditModal(u)}
+                                  className="text-xs px-3 py-1 bg-[#2AC0DA] rounded hover:opacity-80 transition"
+                                >
+                                  {t.edit}
+                                </button>
                                 <button
                                   onClick={() => handleDeleteUser(u._id)}
                                   className="text-xs px-3 py-1 bg-red-600 rounded hover:opacity-80 transition"
@@ -514,24 +882,35 @@ export default function AdminDashboardPage() {
                   {modalType === "status" ? (
                     <div className="space-y-4">
                       <div>
-                        <label className="block mb-2 opacity-80">{t.status_new}</label>
+                        <label className="block mb-2 opacity-80">
+                          {t.status_new}
+                        </label>
                         <select
                           value={newStatus}
                           onChange={(e) => setNewStatus(e.target.value)}
                           className="w-full bg-[#272727] rounded-lg px-4 py-2 outline-none"
                         >
-                          <option value="">{language === "ar" ? "اختر الحالة" : "Select Status"}</option>
+                          <option value="">
+                            {language === "ar"
+                              ? "اختر الحالة"
+                              : "Select Status"}
+                          </option>
                           <option value="new">{t.status_new}</option>
-                          <option value="in_progress">{t.status_in_progress}</option>
+                          <option value="in_progress">
+                            {t.status_in_progress}
+                          </option>
                           <option value="assigned">{t.status_assigned}</option>
                           <option value="resolved">{t.status_resolved}</option>
-                          <option value="not_resolved">{t.status_not_resolved}</option>
+                          <option value="not_resolved">
+                            {t.status_not_resolved}
+                          </option>
                         </select>
                       </div>
                       <div className="flex gap-2">
                         <button
                           onClick={() => {
-                            if (newStatus) handleStatusChange(selectedTicket, newStatus);
+                            if (newStatus)
+                              handleStatusChange(selectedTicket, newStatus);
                           }}
                           className="flex-1 px-4 py-2 bg-[#2AC0DA] rounded hover:opacity-80 transition"
                         >
@@ -552,7 +931,9 @@ export default function AdminDashboardPage() {
                   ) : (
                     <div className="space-y-4">
                       <div>
-                        <label className="block mb-2 opacity-80">{t.selectUser}</label>
+                        <label className="block mb-2 opacity-80">
+                          {t.selectUser}
+                        </label>
                         <select
                           value={assignUserId}
                           onChange={(e) => setAssignUserId(e.target.value)}
@@ -569,7 +950,8 @@ export default function AdminDashboardPage() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => {
-                            if (assignUserId) handleAssignTicket(selectedTicket, assignUserId);
+                            if (assignUserId)
+                              handleAssignTicket(selectedTicket, assignUserId);
                           }}
                           className="flex-1 px-4 py-2 bg-[#48A07D] rounded hover:opacity-80 transition"
                         >
@@ -591,20 +973,86 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
             )}
+
             {editingUser && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div className="bg-[#343434] rounded-xl p-6 max-w-md w-full mx-4">
                   <h2 className="text-xl font-bold mb-4">{t.editUser}</h2>
                   <form onSubmit={handleUserEditSubmit} className="space-y-3">
-                    <input className="w-full rounded px-3 py-2 bg-[#272727]" placeholder="Employee ID" value={editForm.employeeId} onChange={e => setEditForm(f => ({ ...f, employeeId: e.target.value }))} />
-                    <input className="w-full rounded px-3 py-2 bg-[#272727]" placeholder={t.name} value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
-                    <input className="w-full rounded px-3 py-2 bg-[#272727]" placeholder={t.email} value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
-                    <input className="w-full rounded px-3 py-2 bg-[#272727]" placeholder={t.department} value={editForm.department} onChange={e => setEditForm(f => ({ ...f, department: e.target.value }))} />
-                    <input className="w-full rounded px-3 py-2 bg-[#272727]" placeholder={t.position} value={editForm.position} onChange={e => setEditForm(f => ({ ...f, position: e.target.value }))} />
-                    <input className="w-full rounded px-3 py-2 bg-[#272727]" placeholder={t.location} value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} />
+                    <input
+                      className="w-full rounded px-3 py-2 bg-[#272727]"
+                      placeholder="Employee ID"
+                      value={editForm.employeeId}
+                      onChange={(e) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          employeeId: e.target.value,
+                        }))
+                      }
+                    />
+                    <input
+                      className="w-full rounded px-3 py-2 bg-[#272727]"
+                      placeholder={t.name}
+                      value={editForm.name}
+                      onChange={(e) =>
+                        setEditForm((f) => ({ ...f, name: e.target.value }))
+                      }
+                    />
+                    <input
+                      className="w-full rounded px-3 py-2 bg-[#272727]"
+                      placeholder={t.email}
+                      value={editForm.email}
+                      onChange={(e) =>
+                        setEditForm((f) => ({ ...f, email: e.target.value }))
+                      }
+                    />
+                    <input
+                      className="w-full rounded px-3 py-2 bg-[#272727]"
+                      placeholder={t.department}
+                      value={editForm.department}
+                      onChange={(e) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          department: e.target.value,
+                        }))
+                      }
+                    />
+                    <input
+                      className="w-full rounded px-3 py-2 bg-[#272727]"
+                      placeholder={t.position}
+                      value={editForm.position}
+                      onChange={(e) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          position: e.target.value,
+                        }))
+                      }
+                    />
+                    <input
+                      className="w-full rounded px-3 py-2 bg-[#272727]"
+                      placeholder={t.location}
+                      value={editForm.location}
+                      onChange={(e) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          location: e.target.value,
+                        }))
+                      }
+                    />
                     <div className="flex gap-2 pt-2">
-                      <button type="submit" className="flex-1 px-4 py-2 bg-[#2AC0DA] rounded hover:opacity-80 transition">{t.save}</button>
-                      <button type="button" onClick={closeEditModal} className="flex-1 px-4 py-2 bg-[#404040] rounded hover:opacity-80 transition">{t.cancel}</button>
+                      <button
+                        type="submit"
+                        className="flex-1 px-4 py-2 bg-[#2AC0DA] rounded hover:opacity-80 transition"
+                      >
+                        {t.save}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={closeEditModal}
+                        className="flex-1 px-4 py-2 bg-[#404040] rounded hover:opacity-80 transition"
+                      >
+                        {t.cancel}
+                      </button>
                     </div>
                   </form>
                 </div>
@@ -616,4 +1064,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-

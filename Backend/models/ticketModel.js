@@ -43,6 +43,10 @@ const ticketSchema = new mongoose.Schema(
       enum: ["new", "in_progress", "resolved", "assigned", "not_resolved"],
       default: "new",
     },
+    resolvedAt: {
+      type: Date,
+      default: null,
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -58,9 +62,23 @@ const ticketSchema = new mongoose.Schema(
       required: true,
     },
     comments: [commentSchema],
+    solvedWithSana: {
+      type: Boolean,
+      default: false,
+    },
+    sanaRecommendation: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );
+ticketSchema.pre("save", function (next) {
+  if (this.isModified("status") && this.status === "resolved") {
+    this.resolvedAt = new Date();
+  }
+  next();
+});
 
 // Generate unique ticket ID before saving
 ticketSchema.pre('save', async function(next) {

@@ -48,6 +48,11 @@ export const translations = {
     suggestions: 'اقتراحات',
     suggestedSolution: 'الحل المقترح من',
     completeTicket: 'إنشاء التذكرة',
+    sanaSuggestions: 'اقتراحات SANA',
+    solved: 'تم الحل',
+    notUseful: 'غير مفيد',
+    loadingSuggestions: 'جاري تحميل الاقتراحات...',
+    solvedWithSana: 'تم حل التذكرة بنجاح باستخدام اقتراح SANA',
     cancel: 'إلغاء',
     myTicketsAgain: 'تذاكري',
     // Ticket statuses
@@ -145,6 +150,11 @@ export const translations = {
     suggestions: 'Suggestions',
     suggestedSolution: 'Suggested Solution from',
     completeTicket: 'Create Ticket',
+    sanaSuggestions: 'SANA Suggestions',
+    solved: 'Solved',
+    notUseful: 'Not Useful',
+    loadingSuggestions: 'Loading suggestions...',
+    solvedWithSana: 'The ticket has been successfully resolved using SANA\'s suggestion',
     cancel: 'Cancel',
     myTicketsAgain: 'My Tickets',
     // Ticket statuses

@@ -1,3 +1,25 @@
+# Environment
 .env
 
+# Node modules
 node_modules/
+
+# macOS system files
+.DS_Store
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Python virtual env
+venv/
+
+# FAISS index files (NEVER push to github)
+*.faiss
+*.pkl
+
+# CSV datasets
+*.csv
+
+# Editor settings (optional)
+.vscode/
