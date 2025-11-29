@@ -14,10 +14,33 @@ export const getAllTickets = async (req, res) => {
     const tickets = await Ticket.find()
       .populate("assignedTo", "name email")
       .populate("createdBy", "name email")
-      .sort({ createdAt: -1 }); // Sort by newest first
+      .sort({ createdAt: -1 })
+      .lean(); // Sort by newest first
+
+    // Process tickets to add channel field based on solvedWithSana
+    const processed = tickets.map(t => {
+      // Final resolvedAt normalization
+      const resolvedAt =
+        t.resolvedAt ||
+        (t.status === "resolved" ? t.updatedAt : null);
+
+      // Channel mix: Self-Service vs Assisted
+      const channel = t.solvedWithSana ? "self_service" : "assisted";
+
+      // Normalize priority (to lower-case)
+      const priority = (t.priority || "low").toLowerCase();
+
+      return {
+        ...t,
+        resolvedAt,
+        channel,
+        priority,
+      };
+    });
+
     res.status(200).json({
       success: true,
-      tickets: tickets || [],
+      tickets: processed || [],
     });
   } catch (err) {
     console.error(err);
