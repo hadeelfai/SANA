@@ -601,12 +601,33 @@ def should_route_to_employee(q: str, requested_field: str | None) -> bool:
     return False
 
 # ==============================
-# 10) Main router
+# 9) Out-of-scope detection (أسئلة خارج نطاق HR)
+# ==============================
+OUT_OF_SCOPE = [
+    # English
+    "iphone", "samsung", "laptop", "mobile", "phone",
+    "playstation", "ps5", "ps4", "netflix", "spotify",
+    "price", "how much", "cost",
+
+    # Arabic
+    "كم سعر", "كم قيمه", "كم قيمة", "سعر", "جوال", "موبايل",
+    "بلايستيشن", "سوني", "نتفليكس", "اشتراك نتفليكس"
+]
+
+def is_out_of_scope(q: str) -> bool:
+    """نحدد إذا السؤال واضح إنه خارج نطاق مساعد HR."""
+    q_low = (q or "").lower()
+    return any(token in q_low for token in OUT_OF_SCOPE)
+
+
+# ==============================
+# 10) Main router (بعد التعديل)
 # ==============================
 def hr_answer(q: str) -> str:
     """
     Main router:
     - Smalltalk
+    - Out-of-scope filter
     - Employee questions (stateless)
     - Policy questions via RAG (with history only for pronouns)
     """
@@ -614,10 +635,27 @@ def hr_answer(q: str) -> str:
 
     lang = detect_lang(q)
 
-    # ---- Smalltalk first ----
+    # ---- Smalltalk أولاً ----
     st = detect_smalltalk(q)
     if st:
         return smalltalk_reply(st, lang)
+
+    # ---- أسئلة خارج نطاق HR ----
+    if is_out_of_scope(q):
+        if lang == "ar":
+            return (
+                "هذا السؤال خارج نطاق مساعد الموارد البشرية 😊\n"
+                "تقدر تسألني عن:\n"
+                "- سياسات الشركة (الإجازات، بدل السكن، الانتداب، إنهاء الخدمة...)\n"
+                "- أو بيانات الموظفين (البريد الوظيفي، القسم، المسمى الوظيفي، رصيد الإجازات...)."
+            )
+        else:
+            return (
+                "This question is outside the scope of the HR assistant 😊\n"
+                "You can ask me about:\n"
+                "- Company policies (leave, housing allowance, delegation, termination...)\n"
+                "- Or employee information (work email, department, job title, leave balance...)."
+            )
 
     # ---- A) Employee route (with gating) ----
     emp = find_employee_info(q)
@@ -703,6 +741,7 @@ def hr_answer(q: str) -> str:
             base_answer += "\n\nSource:\n- " + "\n- ".join(src_parts)
 
     return base_answer
+
 
 
 # ==============================
